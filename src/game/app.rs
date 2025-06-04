@@ -19,8 +19,6 @@ use super::{states::build_main, World};
 
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
-const FPS: f32 = 144.0;
-const FRAME_TIME: f32 = 1.0 / FPS;
 pub const FPS_LIMIT: bool = true;
 
 #[allow(dead_code)]
@@ -35,6 +33,7 @@ pub struct App {
     pub touch_id: u64,
     pub mouse_pressed: bool,
     pub sim_speed: f32,
+    pub target_frame_time: f32,
 }
 
 impl App {
@@ -56,6 +55,7 @@ impl App {
             touch_id: 0,
             mouse_pressed: false,
             sim_speed: 1.0,
+            target_frame_time: 1.0 / 144.0,
         }
     }
 }
@@ -118,7 +118,7 @@ impl ApplicationHandler for App {
             },
             WindowEvent::RedrawRequested => {
                 let time_stamp = self.time.elapsed().as_secs_f32();
-                if !FPS_LIMIT || time_stamp > FRAME_TIME * 0.93 {
+                if !FPS_LIMIT || time_stamp > self.target_frame_time * 0.93 {
                     self.time = Instant::now();
                     self.world.update(self.sim_speed * time_stamp, &mut renderer);
                     renderer.draw_frame();
@@ -251,6 +251,14 @@ impl ApplicationHandler for App {
             .with_visible(false);
 
         let window = event_loop.create_window(window_attributes).unwrap();
+        if let Some(monitor) = window.current_monitor() {
+            if let Some(refresh_rate) = monitor.refresh_rate_millihertz() {
+                self.target_frame_time = 1000.0 / refresh_rate as f32;
+                println!("target pfs: {}", refresh_rate / 1000);
+            } else {
+                println!("Refresh rate not available");
+            }
+        }
         forget(self.renderer.replace(VulkanRender::create(window, &self.world)));
 
         let mut renderer = self.renderer.borrow_mut();
