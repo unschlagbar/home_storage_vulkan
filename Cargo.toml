@@ -1,0 +1,42 @@
+[package]
+name = "home_storage_vulkan"
+version = "0.1.0"
+edition = "2024"
+build = "shaderc.rs"
+
+[lib]
+name = "main"
+crate-type = ["cdylib"]
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+debug-assertions = false
+overflow-checks = false
+panic = "abort"
+debug = false
+
+[profile.dev]
+opt-level = 0
+
+[profile.dev.build-override]
+opt-level = 3
+
+[profile.release.build-override]
+opt-level = 3
+
+[dependencies]
+iron_oxide = { path = "../iron_oxide", features = ["graphics"]}
+ash = { version = "0.38.0" }
+ash-window = "0.13.0"
+cgmath = "0.18.0"
+png = "0.17.16"
+log = "0.4.27"
+rand = "0.9.1"
+
+[target.'cfg(target_os = "android")'.dependencies]
+winit = { version = "0.30.10", features = ["android-game-activity"] }
+android_logger = "0.15.0"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+winit = { version = "0.30.10" }
