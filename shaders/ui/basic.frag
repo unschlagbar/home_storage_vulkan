@@ -17,7 +17,7 @@ void main() {
     vec3 color = inColor.rgb;
 
     vec2 uv = fragTexCoord * vec2(fragWidth, fragHeight);
-    float alpha = 1.0;
+    float alpha = inColor.a;
 
     // Define the positions of the corners
     vec2 topLeft = vec2(corner, fragHeight - corner);
@@ -42,7 +42,7 @@ void main() {
         }
 
         if (dist > corner - antialiasWidth && dist <= corner) {
-            alpha = smoothstep(corner, corner - antialiasWidth, dist);
+            alpha *= smoothstep(corner, corner - antialiasWidth, dist);
         } else if (dist > corner) {
             discard;
         }
@@ -58,7 +58,7 @@ void main() {
             float dist = 0.0;
 
             if (uv.y <= corner && uv.x <= corner) {
-                dist = length(uv - bottomLeft);
+                dist = length(uv - bottomLeft + 0.1);
             } else if (uv.y <= corner && uv.x >= fragWidth - corner) {
                 dist = length(uv - bottomRight + 0.1);
             } else if (uv.y >= fragHeight - corner && uv.x >= fragWidth - corner) {
@@ -81,18 +81,3 @@ void main() {
     }
     outColor = vec4(color, alpha);
 }
-
-    //Text
-    //} else if (mode == 1) {
-    //    uint bits0 = floatBitsToUint(border); // Konvertiere den float in seine Bit-Darstellung
-    //    uint uv_width = (bits0 >> 16) & 0xFFFFu;  // Die oberen 16 Bit
-    //    uint uv_x = bits0 & 0xFFFFu;
-
-    //    uint bits1 = floatBitsToUint(corner); // Konvertiere den float in seine Bit-Darstellung
-    //    uint uv_height = (bits1 >> 16) & 0xFFFFu;  // Die oberen 16 Bit
-    //    uint uv_y = bits1 & 0xFFFFu;
-
-    //    vec2 uv = vec2( mix(uv_x, uv_x + uv_width, fragTexCoord.r),  mix(uv_y, uv_y + uv_height, fragTexCoord.g)) / 128;
-    //    float texture = texture(texSampler[0], uv).r;
-    //    outColor = vec4(color * texture, texture);
-

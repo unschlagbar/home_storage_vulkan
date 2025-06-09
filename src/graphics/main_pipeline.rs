@@ -2,7 +2,7 @@
 use ash::vk::{self};
 use super::{shader_modul, Vertex};
 
-pub fn create_main_pipeline(device: &ash::Device, window_size: winit::dpi::PhysicalSize<u32>, render_pass: vk::RenderPass, descriptor_set_layout: &vk::DescriptorSetLayout) -> (vk::PipelineLayout, vk::Pipeline) {
+pub fn create_main_pipeline(device: &ash::Device, window_size: winit::dpi::PhysicalSize<u32>, render_pass: vk::RenderPass, descriptor_set_layout: vk::DescriptorSetLayout) -> (vk::PipelineLayout, vk::Pipeline) {
     let vertex_shader_buff= include_bytes!("../../spv/shader.vert.spv");
     let fragment_shader_buff = include_bytes!("../../spv/shader.frag.spv");
 
@@ -18,7 +18,7 @@ pub fn create_main_pipeline(device: &ash::Device, window_size: winit::dpi::Physi
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         stage: vk::ShaderStageFlags::VERTEX,
         module: vertex_shader_module,
-        p_name:  b"main\0".as_ptr() as *const _,
+        p_name:  c"main".as_ptr(),
         ..Default::default()
     };
 
@@ -26,7 +26,7 @@ pub fn create_main_pipeline(device: &ash::Device, window_size: winit::dpi::Physi
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         stage: vk::ShaderStageFlags::FRAGMENT,
         module: fragment_shader_module,
-        p_name:  b"main\0".as_ptr() as *const _,
+        p_name:  c"main".as_ptr(),
         ..Default::default()
     };
 
@@ -112,7 +112,7 @@ pub fn create_main_pipeline(device: &ash::Device, window_size: winit::dpi::Physi
 
     let pipeline_layout_info = vk::PipelineLayoutCreateInfo {
         set_layout_count: 1,
-        p_set_layouts: descriptor_set_layout,
+        p_set_layouts: &descriptor_set_layout,
         ..Default::default()
     };
 

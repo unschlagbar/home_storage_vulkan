@@ -17,7 +17,7 @@ void main() {
     uint uv_y_size = (fragUvSize >> 16) & 0xffff;
 
     //vec2 uv = vec2(mix(uv_x, uv_x_size, fragUv.x) / 1.0, mix(uv_y, uv_y_size, fragUv.y) / 1.0);
-    vec2 uv = vec2(mix(uv_x, uv_x + uv_x_size, fragUv.x), mix(uv_y, uv_y + uv_y_size, fragUv.y));
+    vec2 uv = vec2(mix(uv_x, uv_x + uv_x_size, fragUv.x), mix(uv_y, uv_y + uv_y_size, fragUv.y)) / 128.0;
 
     float texture = texture(texSampler[0], uv).r;
     outColor = vec4(fragColor.rgb * texture, texture);

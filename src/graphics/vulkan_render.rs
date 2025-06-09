@@ -1,25 +1,35 @@
-use std::{cell::RefCell, ffi::c_void, mem::size_of, ptr::{self, null}, rc::Rc, thread::sleep, time::{Duration, Instant}, u64
+use std::{
+    cell::RefCell,
+    ffi::c_void,
+    mem::size_of,
+    ptr::{self, null},
+    rc::Rc,
+    thread::sleep,
+    time::{Duration, Instant}
 };
 use ash::vk::{
-    self, AccessFlags, CompareOp, Extent3D, Format, ImageUsageFlags, MemoryPropertyFlags, PipelineStageFlags, ShaderStageFlags
+    self, AccessFlags,
+    CompareOp, Extent3D,
+    Format, ImageUsageFlags,
+    MemoryPropertyFlags,
+    PipelineStageFlags,
+    ShaderStageFlags
 };
 use cgmath::{ortho, Matrix4};
 use iron_oxide::{graphics::{self, Buffer, SinlgeTimeCommands, VkBase}, ui::UiState};
-use winit::{dpi::PhysicalSize, raw_window_handle::HasDisplayHandle, window::Window};
+use winit::{dpi::PhysicalSize, raw_window_handle::{HasDisplayHandle, HasWindowHandle}, window::Window};
 
-use super::{buffer::create_uniform_buffers, uniform_buffer_object::UiUniformBufferObject};
+use super::buffer::create_uniform_buffers;
 use super::UniformBufferObject;
 use super::main_pipeline;
-use crate::game::{app::FPS_LIMIT, Cube, World};
+use crate::{game::{app::FPS_LIMIT, Cube, World}, graphics::Vertex};
 
 pub const MAXFRAMESINFLIGHT: usize = 1;
 
 pub struct VulkanRender {
-    pub window: Window,
-    pub window_size: PhysicalSize<u32>,
-
     pub base: iron_oxide::graphics::VkBase,
-
+    
+    pub window_size: PhysicalSize<u32>,
     pub swapchain: super::Swapchain,
     pub render_pass: vk::RenderPass,
 
@@ -38,7 +48,7 @@ pub struct VulkanRender {
 
     pub instance_count: u32,
     pub instance_buffer: Buffer,
-    pub instance_staging_buffer: Buffer,
+    pub staging_buffer: Buffer,
 
     uniform_buffers: [Buffer; MAXFRAMESINFLIGHT],
     uniform_buffers_mapped: [*mut c_void; MAXFRAMESINFLIGHT],
@@ -51,8 +61,6 @@ pub struct VulkanRender {
     ui_descriptor_pool: vk::DescriptorPool,
     pub ui_descriptor_sets: Vec<vk::DescriptorSet>,
     pub ui_descriptor_set_layout: vk::DescriptorSetLayout,
-    #[allow(unused)]
-    pub descriptor_set_layout: vk::DescriptorSetLayout,
 
     pub command_buffers: [vk::CommandBuffer; MAXFRAMESINFLIGHT],
 
@@ -60,8 +68,6 @@ pub struct VulkanRender {
     render_finsih_semaphores: Vec<vk::Semaphore>,
     in_flight_fences: [vk::Fence; MAXFRAMESINFLIGHT],
     pub current_frame: usize,
-
-    pub main_framebuffer: Vec<vk::Framebuffer>,
 
     texture_image: graphics::Image,
     pub texture_sampler: vk::Sampler,
@@ -75,81 +81,97 @@ pub struct VulkanRender {
 }
 
 impl VulkanRender {
-    pub fn create(window: Window, world: &World) -> Self {
+    pub fn create(window: &Window, world: &World) -> Self {
         let start_time = Instant::now();
 
-        let instance_extentions = ash_window::enumerate_required_extensions(window.display_handle().unwrap().as_raw()).unwrap().to_vec();
+        let display_handle = window.display_handle().unwrap().as_raw();
+        let window_handle = window.window_handle().unwrap().as_raw();
 
-        let base = VkBase::create(instance_extentions as _, &window, 0);
+        let (base, surface_loader, surface) = VkBase::create(Vec::new(), 0, display_handle, window_handle);
 
         let command_pool = Self::create_command_pool(&base);
         let single_time_command_pool = Self::create_single_time_command_pool(&base);
 
         let window_size = window.inner_size();
-        let cmd_buf = SinlgeTimeCommands::begin(&base, &single_time_command_pool);
-        let depth_image = Self::create_depth_resources(&base, &cmd_buf, Extent3D { width: window_size.width, height: window_size.height, depth: 1 });
-
-        let swapchain = super::Swapchain::create(&base, window_size, if FPS_LIMIT {vk::PresentModeKHR::FIFO} else {vk::PresentModeKHR::IMMEDIATE});
-
+        let mut swapchain = super::Swapchain::create(&base, window_size, if FPS_LIMIT {vk::PresentModeKHR::FIFO} else {vk::PresentModeKHR::IMMEDIATE}, surface_loader, surface);
         let render_pass = Self::create_render_pass(&base, swapchain.format, true, true, false, true);
-
-        let descriptor_set_layout = create_descriptor_set_layout(&base.device);
-        let ui_descriptor_set_layout = create_ui_descriptor_set_layout(&base.device);
-        let (pipeline_layout, pipeline) = main_pipeline::create_main_pipeline(&base.device, window_size, render_pass, &descriptor_set_layout);
-
-        let (mut texture_image, staging_buf) = Self::create_texture_image(&base, &cmd_buf);
-        let (mut font_atlas, staging_buf2) = Self::create_font_atlas(&base, &cmd_buf);
-        let texture_sampler = Self::create_texture_sampler(&base.device);
-        SinlgeTimeCommands::end(&base, &single_time_command_pool, cmd_buf);
-
-        staging_buf.destroy(&base.device);
-        staging_buf2.destroy(&base.device);
 
         let (vertices, indices) = Cube::generate_vertices();
         let instances = world.get_instances();
-
+        
         let vertex_count = vertices.len() as u32;
         let index_count = indices.len() as u32;
-
-        let ui_state = world.ui.clone();
-
-        let (vertex_buffer, index_buffer, instance_buffer, instance_staging_buffer) = (
-            Buffer::device_local(&base, &single_time_command_pool, &vertices, vk::BufferUsageFlags::VERTEX_BUFFER),
-            Buffer::device_local(&base, &single_time_command_pool, &indices, vk::BufferUsageFlags::INDEX_BUFFER),
-            Buffer::device_local(&base, &single_time_command_pool, &instances, vk::BufferUsageFlags::VERTEX_BUFFER),
-            Buffer::create(&base, size_of::<Matrix4<f32>>() as u64 * 3, vk::BufferUsageFlags::TRANSFER_SRC, vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT),
+        
+        
+        let (vertex_buffer, index_buffer, instance_buffer) = (
+            Buffer::create(&base, vertices.len() as u64 * size_of::<Vertex>() as u64, vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST, vk::MemoryPropertyFlags::DEVICE_LOCAL),
+            Buffer::create(&base, vertices.len() as u64 * size_of::<u32>() as u64, vk::BufferUsageFlags::INDEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST, vk::MemoryPropertyFlags::DEVICE_LOCAL),
+            Buffer::create(&base, vertices.len() as u64 * size_of::<Matrix4<f32>>() as u64, vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST, vk::MemoryPropertyFlags::DEVICE_LOCAL),
         );
 
+        let staging_size = vertex_buffer.size + index_buffer.size + instance_buffer.size;
+        let staging_buffer = Buffer::create(&base, staging_size, vk::BufferUsageFlags::TRANSFER_SRC, vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT);
+
+        let mapped_memory = staging_buffer.map_memory(&base.device, staging_size, 0);
+        unsafe {
+            std::ptr::copy_nonoverlapping(vertices.as_ptr(), mapped_memory as _, vertices.len());
+            std::ptr::copy_nonoverlapping(indices.as_ptr(), mapped_memory.byte_add(vertex_buffer.size as _) as _, indices.len());
+            std::ptr::copy_nonoverlapping(instances.as_ptr(), mapped_memory.byte_add(vertex_buffer.size as usize + index_buffer.size as usize) as _, instances.len());
+        };
+        staging_buffer.unmap_memory(&base.device);
+
+        let cmd_buf = SinlgeTimeCommands::begin(&base, single_time_command_pool);
+        staging_buffer.copy(&base, &vertex_buffer, vertex_buffer.size, 0, cmd_buf);
+        staging_buffer.copy(&base, &index_buffer, index_buffer.size, vertex_buffer.size, cmd_buf);
+        staging_buffer.copy(&base, &instance_buffer, instance_buffer.size, vertex_buffer.size + index_buffer.size, cmd_buf);
+
+        let depth_image = Self::create_depth_resources(&base, cmd_buf, Extent3D { width: window_size.width, height: window_size.height, depth: 1 });
+        let (mut texture_image, staging_buf) = Self::create_texture_image(&base, cmd_buf);
+        let (mut font_atlas, staging_buf2) = Self::create_font_atlas(&base, cmd_buf);
+        SinlgeTimeCommands::end(&base, single_time_command_pool, cmd_buf);
+        
+        staging_buf.destroy(&base.device);
+        staging_buf2.destroy(&base.device);
+        
+        swapchain.create_framebuffer(&base, render_pass, depth_image.view, window_size);
+        
+        
+        
+        let ui_state = world.ui.clone();
+        
+        
         texture_image.create_view(&base, vk::ImageAspectFlags::COLOR);
         font_atlas.create_view(&base, vk::ImageAspectFlags::COLOR);
-
+        
         let (uniform_buffers, uniform_buffers_mapped) = create_uniform_buffers(&base);
         let (ui_uniform_buffers, ui_uniform_buffers_mapped) = create_uniform_buffers(&base);
         
+        let texture_sampler = Self::create_texture_sampler(&base.device);
         let descriptor_pool = create_descriptor_pool(&base.device);
         let ui_descriptor_pool = create_ui_descriptor_pool(&base.device);
-        let descriptor_sets = create_descriptor_sets(&base.device, &descriptor_pool, &descriptor_set_layout, &uniform_buffers, texture_sampler, texture_image.view, size_of::<UniformBufferObject>() as _);
-        let ui_descriptor_sets = create_ui_descriptor_sets(&base.device, &ui_descriptor_pool, &ui_descriptor_set_layout, &ui_uniform_buffers, texture_sampler, &[font_atlas.view, texture_image.view], size_of::<UniformBufferObject>() as _);
-        //unsafe { base.device.destroy_descriptor_set_layout(ui_descriptor_set_layout, None) };
+        let descriptor_set_layout = create_descriptor_set_layout(&base.device);
+        let ui_descriptor_set_layout = create_ui_descriptor_set_layout(&base.device);
+        let (pipeline_layout, pipeline) = main_pipeline::create_main_pipeline(&base.device, window_size, render_pass, descriptor_set_layout);
+        let descriptor_sets = create_descriptor_sets(&base.device, descriptor_pool, descriptor_set_layout, &uniform_buffers, texture_sampler, texture_image.view, size_of::<UniformBufferObject>() as _);
+        let ui_descriptor_sets = create_ui_descriptor_sets(&base.device, ui_descriptor_pool, ui_descriptor_set_layout, &ui_uniform_buffers, texture_sampler, &[font_atlas.view, texture_image.view], size_of::<UniformBufferObject>() as _);
+        
         unsafe { base.device.destroy_descriptor_set_layout(descriptor_set_layout, None) };
         
-        let command_buffers = Self::create_command_buffers(&base.device, &command_pool);
-        let main_framebuffer = Self::create_framebuffers(&base.device, &swapchain.image_views, &depth_image.view, &render_pass, window_size);
+        let command_buffers = Self::create_command_buffers(&base.device, command_pool);
         let (image_available_semaphores, render_finsih_semaphores, in_flight_fences)= Self::create_sync_object(&base.device, swapchain.image_views.len());
-
+        
         let world = world as *const World;
-
+        
         println!("Vulkan time: {:?}", start_time.elapsed());
-
+        
         let mut renderer = Self {
-            window,
             window_size,
             base,
             swapchain,
             pipeline_layout,
             render_pass,
             graphics_pipeline: pipeline,
-            main_framebuffer,
+
             command_pool,
             single_time_command_pool,
     
@@ -161,7 +183,7 @@ impl VulkanRender {
 
             instance_count: instances.len() as _,
             instance_buffer,
-            instance_staging_buffer,
+            staging_buffer,
     
             uniform_buffers,
             uniform_buffers_mapped,
@@ -173,7 +195,6 @@ impl VulkanRender {
             descriptor_sets,
             ui_descriptor_sets,
             ui_descriptor_set_layout,
-            descriptor_set_layout,
     
             command_buffers,
             image_available_semaphores,
@@ -202,25 +223,22 @@ impl VulkanRender {
 
         #[cfg(not(target_os = "android"))]
         if new_size.width == 0 || new_size.height == 0 {
-            sleep(Duration::from_millis(100));
             return;
         }
 
         unsafe { self.base.device.device_wait_idle().unwrap_unchecked() };
-        self.swapchain.destroy(&self.base.device, &self.main_framebuffer);
         self.depth_image.destroy(&self.base.device);
 
-        let cmd_buf = SinlgeTimeCommands::begin(&self.base, &self.single_time_command_pool);
-        self.depth_image = Self::create_depth_resources(&self.base, &cmd_buf, Extent3D { width: self.window_size.width, height: self.window_size.height, depth: 1 });
+        let cmd_buf = SinlgeTimeCommands::begin(&self.base, self.single_time_command_pool);
+        self.depth_image = Self::create_depth_resources(&self.base, cmd_buf, Extent3D { width: self.window_size.width, height: self.window_size.height, depth: 1 });
         SinlgeTimeCommands::submit(&self.base, cmd_buf);
 
-        self.swapchain.recreate(&self.base, new_size);
-        self.main_framebuffer = Self::create_framebuffers(&self.base.device, &self.swapchain.image_views, &self.depth_image.view, &self.render_pass, new_size);
+        self.swapchain.recreate(&self.base, new_size, self.render_pass, self.depth_image.view);
         self.update_ui_uniform_buffer();
 
         self.ui_state.borrow_mut().resize(new_size.into());
 
-        SinlgeTimeCommands::end_after_submit(&self.base, &self.single_time_command_pool, cmd_buf);
+        SinlgeTimeCommands::end_after_submit(&self.base, self.single_time_command_pool, cmd_buf);
     }
 
     fn create_render_pass(base: &VkBase, format: vk::SurfaceFormatKHR, clear: bool, depth: bool, has_previus: bool, is_final: bool) -> vk::RenderPass {
@@ -228,7 +246,7 @@ impl VulkanRender {
             format: format.format,
             samples: vk::SampleCountFlags::TYPE_1,
             load_op: if clear {vk::AttachmentLoadOp::CLEAR} else { vk::AttachmentLoadOp::DONT_CARE },
-            store_op: if is_final {vk::AttachmentStoreOp::STORE} else {vk::AttachmentStoreOp::STORE},
+            store_op: if is_final {vk::AttachmentStoreOp::STORE} else {vk::AttachmentStoreOp::DONT_CARE},
             stencil_load_op: vk::AttachmentLoadOp::DONT_CARE,
             stencil_store_op: vk::AttachmentStoreOp::DONT_CARE,
             initial_layout: if has_previus {vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL} else { vk::ImageLayout::UNDEFINED },
@@ -258,12 +276,11 @@ impl VulkanRender {
             layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         };
 
-        let attachments;
-        if depth {
-            attachments = vec![color_attachment, depth_attachment];
+        let attachments = if depth {
+            vec![color_attachment, depth_attachment]
         } else {
-            attachments = vec![color_attachment];
-        }
+            vec![color_attachment]
+        };
 
         let subpasses = [
             vk::SubpassDescription {
@@ -317,26 +334,6 @@ impl VulkanRender {
 
     }
 
-    fn create_framebuffers(device: &ash::Device, image_views: &Vec<vk::ImageView>, depth_image_view: &vk::ImageView, render_pass: &vk::RenderPass, window_size: PhysicalSize<u32>) -> Vec<vk::Framebuffer> {
-        let mut swapchain_framebuffers = Vec::with_capacity(image_views.len());
-        for image_view in image_views {
-
-            let attachments = [*image_view, *depth_image_view];
-            let main_create_info = vk::FramebufferCreateInfo {
-                render_pass: *render_pass,
-                attachment_count: attachments.len() as _,
-                p_attachments: attachments.as_ptr(),
-                width: window_size.width,
-                height: window_size.height,
-                layers: 1,
-                ..Default::default()
-            };
-
-            swapchain_framebuffers.push(unsafe { device.create_framebuffer(&main_create_info, None).unwrap() });
-        }
-        swapchain_framebuffers
-    }
-
     fn create_command_pool(base: &VkBase) -> vk::CommandPool {
         let pool_info = vk::CommandPoolCreateInfo {
             flags: vk::CommandPoolCreateFlags::TRANSIENT,
@@ -357,9 +354,9 @@ impl VulkanRender {
         unsafe { base.device.create_command_pool(&pool_info, None).unwrap() }
     }
 
-    fn create_command_buffers(device: &ash::Device, command_pool: &vk::CommandPool) -> [vk::CommandBuffer; MAXFRAMESINFLIGHT] {
+    fn create_command_buffers(device: &ash::Device, command_pool: vk::CommandPool) -> [vk::CommandBuffer; MAXFRAMESINFLIGHT] {
         let aloc_info = vk::CommandBufferAllocateInfo {
-            command_pool: *command_pool,
+            command_pool,
             level: vk::CommandBufferLevel::PRIMARY,
             command_buffer_count: MAXFRAMESINFLIGHT as _,
             ..Default::default()
@@ -376,10 +373,8 @@ impl VulkanRender {
     }
 
     pub fn draw_frame(&mut self) {
-        let window_size = self.window.inner_size();
-
-        if window_size.width == 0 || window_size.height == 0 {
-            sleep(Duration::from_millis(25));
+        if self.window_size.width == 0 || self.window_size.height == 0 {
+            sleep(Duration::from_millis(100));
             return;
         }
 
@@ -432,7 +427,6 @@ impl VulkanRender {
         };
 
         if unsafe { self.swapchain.loader.queue_present(self.base.queue, &present_info).is_err() } {
-            self.recreate_swapchain(self.window.inner_size());
             return;
         }
 
@@ -447,8 +441,9 @@ impl VulkanRender {
 
         let render_pass_info = vk::RenderPassBeginInfo {
             render_pass: self.render_pass,
-            framebuffer: self.main_framebuffer[index as usize],
-            render_area: vk::Rect2D { offset: vk::Offset2D { x: 0, y: 0 }, extent: vk::Extent2D { width: self.window_size.width, height: self.window_size.height }},
+            framebuffer: self.swapchain.framebuffers[index as usize],
+            render_area: vk::Rect2D { offset: vk::Offset2D { x: 0, y: 0 },
+            extent: vk::Extent2D { width: self.window_size.width, height: self.window_size.height }},
             clear_value_count: clear_values.len() as _,
             p_clear_values: clear_values.as_ptr(),
             ..Default::default()
@@ -489,7 +484,7 @@ impl VulkanRender {
             device.cmd_draw_indexed(self.command_buffers[self.current_frame], self.index_count, self.instance_count, 0, 0, 0);
             device.cmd_next_subpass(self.command_buffers[self.current_frame], vk::SubpassContents::INLINE);
 
-            self.ui_state.borrow().draw(&self.base.device, self.command_buffers[self.current_frame], &self.ui_descriptor_sets[self.current_frame]);
+            self.ui_state.borrow().draw(&self.base.device, self.command_buffers[self.current_frame], self.ui_descriptor_sets[self.current_frame]);
             device.cmd_end_render_pass(self.command_buffers[self.current_frame]);
             
             device.end_command_buffer(self.command_buffers[self.current_frame]).unwrap();
@@ -533,9 +528,7 @@ impl VulkanRender {
         let view = world.camera.view();
         let proj = world.camera.projection(self.window_size.width as f32 / self.window_size.height as f32);
 
-        let ubo = UniformBufferObject {
-            view_proj: proj * view,
-        };
+        let ubo = proj * view;
 
         for uniform_buffer in self.uniform_buffers_mapped {
             unsafe { ptr::copy_nonoverlapping(&ubo as _, uniform_buffer as _, 1) };
@@ -543,17 +536,15 @@ impl VulkanRender {
     }
 
     fn update_ui_uniform_buffer(&mut self) {
-        let ubo = UiUniformBufferObject {
-            view_proj: ortho(0.0, self.window_size.width as _, 0.0, self.window_size.height as _, -100.0, 100.0),
-        };
+        let ubo: Matrix4<f32> = ortho(0.0, self.window_size.width as _, 0.0, self.window_size.height as _, -100.0, 100.0);
 
         for uniform_buffer in self.ui_uniform_buffers_mapped {
             unsafe { ptr::copy_nonoverlapping(&ubo as _, uniform_buffer as _, 1) };
         }
     }
 
-    fn create_texture_image(base: &VkBase, cmd_buf: &vk::CommandBuffer) -> (graphics::Image, Buffer) {
-        let decoder = png::Decoder::new(&include_bytes!("../../textures/out_0_6E339CC8.png")[..]);
+    fn create_texture_image(base: &VkBase, cmd_buf: vk::CommandBuffer) -> (graphics::Image, Buffer) {
+        let decoder = png::Decoder::new(&include_bytes!("../../textures/texture.png")[..]);
 
         let mut reader = decoder.read_info().unwrap();
         let mut buf = vec![0; reader.output_buffer_size()];
@@ -580,7 +571,7 @@ impl VulkanRender {
         (texture_image, staging_buffer)
     }
 
-    fn create_font_atlas(base: &VkBase, cmd_buf: &vk::CommandBuffer) -> (graphics::Image, Buffer) {
+    fn create_font_atlas(base: &VkBase, cmd_buf: vk::CommandBuffer) -> (graphics::Image, Buffer) {
         let decoder = png::Decoder::new(&include_bytes!("../../font/default8.png")[..]);
 
         let mut reader = decoder.read_info().unwrap();
@@ -622,16 +613,16 @@ impl VulkanRender {
             compare_enable: vk::FALSE,
             compare_op: CompareOp::ALWAYS,
             min_lod: 0.0,
-            max_lod: 0.0,
-            border_color: vk::BorderColor::INT_OPAQUE_BLACK,
-            unnormalized_coordinates: vk::TRUE,
+            max_lod: vk::LOD_CLAMP_NONE,
+            border_color: vk::BorderColor::FLOAT_TRANSPARENT_BLACK,
+            unnormalized_coordinates: vk::FALSE,
             ..Default::default()
         };
 
         unsafe { device.create_sampler(&create_info, None).unwrap() }
     }
 
-    fn create_depth_resources(base: &VkBase, cmd_buf: &vk::CommandBuffer, extent: Extent3D) -> graphics::Image {
+    fn create_depth_resources(base: &VkBase, cmd_buf: vk::CommandBuffer, extent: Extent3D) -> graphics::Image {
         let mut depth_image = graphics::Image::create(base, extent, Format::D24_UNORM_S8_UINT, vk::ImageTiling::OPTIMAL, ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT, MemoryPropertyFlags::DEVICE_LOCAL);
         depth_image.trasition_layout(base, cmd_buf, vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
         depth_image.create_view(base, vk::ImageAspectFlags::DEPTH);
@@ -639,7 +630,7 @@ impl VulkanRender {
     }
 
     pub fn update_ui(&mut self) {
-        self.ui_state.borrow_mut().update(&self.base, &self.single_time_command_pool);
+        self.ui_state.borrow_mut().update(&self.base, self.single_time_command_pool);
     }
 
     pub fn destroy(&mut self) {
@@ -668,7 +659,7 @@ impl VulkanRender {
             device.destroy_descriptor_pool(self.descriptor_pool, None);
             device.destroy_descriptor_pool(self.ui_descriptor_pool, None);
             device.destroy_render_pass(self.render_pass, None);
-            self.swapchain.destroy(device, &self.main_framebuffer);
+            self.swapchain.destroy(device);
             device.destroy_sampler(self.texture_sampler, None);
             self.depth_image.destroy(device);
             self.texture_image.destroy(device);
@@ -676,8 +667,7 @@ impl VulkanRender {
             self.vertex_buffer.destroy(device);
             self.index_buffer.destroy(device);
             self.instance_buffer.destroy(device);
-            self.instance_staging_buffer.destroy(device);
-            self.base.surface_loader.destroy_surface(self.base.surface, None);
+            self.staging_buffer.destroy(device);
             device.destroy_device(None);
             self.base.instance.destroy_instance(None);
         };
@@ -789,17 +779,17 @@ fn create_ui_descriptor_pool(device: &ash::Device) -> vk::DescriptorPool {
 
 fn create_descriptor_sets(
     device: &ash::Device,
-    descriptor_pool: &vk::DescriptorPool,
-    descriptor_set_layout: &vk::DescriptorSetLayout,
+    descriptor_pool: vk::DescriptorPool,
+    descriptor_set_layout: vk::DescriptorSetLayout,
     uniform_buffers: &[Buffer],
     textures_sampler: vk::Sampler,
     texture_image_view: vk::ImageView,
     ubo_size: u64,
 ) -> Vec<vk::DescriptorSet> {
-    let layouts: [vk::DescriptorSetLayout; MAXFRAMESINFLIGHT] = [*descriptor_set_layout; MAXFRAMESINFLIGHT];
+    let layouts: [vk::DescriptorSetLayout; MAXFRAMESINFLIGHT] = [descriptor_set_layout; MAXFRAMESINFLIGHT];
 
     let allocate_info = vk::DescriptorSetAllocateInfo {
-        descriptor_pool: *descriptor_pool,
+        descriptor_pool,
         descriptor_set_count: MAXFRAMESINFLIGHT as u32,
         p_set_layouts: layouts.as_ptr(),
         ..Default::default()
@@ -849,17 +839,17 @@ fn create_descriptor_sets(
 
 fn create_ui_descriptor_sets(
     device: &ash::Device,
-    descriptor_pool: &vk::DescriptorPool,
-    descriptor_set_layout: &vk::DescriptorSetLayout,
+    descriptor_pool: vk::DescriptorPool,
+    descriptor_set_layout: vk::DescriptorSetLayout,
     uniform_buffers: &[Buffer],
     textures_sampler: vk::Sampler,
     texture_image_views: &[vk::ImageView],
     ubo_size: u64,
 ) -> Vec<vk::DescriptorSet> {
-    let layouts: [vk::DescriptorSetLayout; MAXFRAMESINFLIGHT] = [*descriptor_set_layout; MAXFRAMESINFLIGHT];
+    let layouts: [vk::DescriptorSetLayout; MAXFRAMESINFLIGHT] = [descriptor_set_layout; MAXFRAMESINFLIGHT];
 
     let allocate_info = vk::DescriptorSetAllocateInfo {
-        descriptor_pool: *descriptor_pool,
+        descriptor_pool,
         descriptor_set_count: MAXFRAMESINFLIGHT as u32,
         p_set_layouts: layouts.as_ptr(),
         ..Default::default()

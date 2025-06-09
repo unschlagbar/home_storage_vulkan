@@ -62,15 +62,15 @@ impl World {
 
         let buffer_size = size_of::<Matrix4<f32>>() as u64 * instances.len() as u64;
 
-        let mapped_memory = renderer.instance_staging_buffer.map_memory(&renderer.base.device, buffer_size, 0);
+        let mapped_memory = renderer.staging_buffer.map_memory(&renderer.base.device, buffer_size, 0);
         unsafe {
             std::ptr::copy_nonoverlapping(instances.as_ptr() as *const u8, mapped_memory as _, buffer_size as usize);
-            renderer.instance_staging_buffer.unmap_memory(&renderer.base.device);
+            renderer.staging_buffer.unmap_memory(&renderer.base.device);
         };
 
-        let cmd_buf = SinlgeTimeCommands::begin(&renderer.base, &renderer.command_pool);
-        renderer.instance_staging_buffer.copy(&renderer.instance_buffer, &renderer.base, buffer_size, cmd_buf);
-        SinlgeTimeCommands::end(&renderer.base, &renderer.command_pool, cmd_buf);
+        let cmd_buf = SinlgeTimeCommands::begin(&renderer.base, renderer.command_pool);
+        renderer.staging_buffer.copy(&renderer.base, &renderer.instance_buffer, buffer_size, 0, cmd_buf);
+        SinlgeTimeCommands::end(&renderer.base, renderer.command_pool, cmd_buf);
     }
 
 }

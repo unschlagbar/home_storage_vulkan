@@ -22,7 +22,7 @@ pub fn build_main() -> UiState {
 
     state.add_element(
         AbsoluteLayout {
-            color: Color::new(0.03, 0.03, 0.03, 1.0),
+            color: Color::rgb(25, 25, 25),
             align: Align::Left,
             height: Relative(1.0),
             width: Px(200.0),
@@ -31,10 +31,10 @@ pub fn build_main() -> UiState {
             padding: OutArea::horizontal(Px(20.0)),
             childs: vec![
                 Container {
-                    margin: OutArea::vertical(Px(20.0)),
+                    margin: OutArea::vertical(Px(10.0)),
                     width: Relative(1.0),
                     height: Px(32.0),
-                    color: Color::new(0.06, 0.06, 0.06, 1.0),
+                    color: Color::ZERO,
                     childs: vec![
                         Text { 
                             text: "Vulkan is the best!".to_string(),
@@ -49,7 +49,7 @@ pub fn build_main() -> UiState {
                     margin: OutArea::vertical(Px(1.0)),
                     width: Relative(1.0),
                     height: Px(41.0),
-                    color: Color::new(0.06, 0.06, 0.06, 1.0),
+                    color: Color::rgb(35, 35, 35),
                     childs: vec![
                         Text { 
                             text: "Normal".to_string(),
@@ -65,7 +65,7 @@ pub fn build_main() -> UiState {
                     margin: OutArea::vertical(Px(1.0)),
                     width: Relative(1.0),
                     height: Px(41.0),
-                    color: Color::new(0.06, 0.06, 0.06, 1.0),
+                    color: Color::rgb(35, 35, 35),
                     childs: vec![
                         Text { 
                             text: "Normal".to_string(),
@@ -81,7 +81,7 @@ pub fn build_main() -> UiState {
                     margin: OutArea::vertical(Px(1.0)),
                     width: Relative(1.0),
                     height: Px(41.0),
-                    color: Color::new(0.06, 0.06, 0.06, 1.0),
+                    color: Color::rgb(35, 35, 35),
                     childs: vec![
                         Text { 
                             text: "Normal".to_string(),
@@ -97,7 +97,7 @@ pub fn build_main() -> UiState {
                     margin: OutArea::vertical(Px(1.0)),
                     width: Relative(1.0),
                     height: Px(41.0),
-                    color: Color::new(0.06, 0.06, 0.06, 1.0),
+                    color: Color::rgb(35, 35, 35),
                     border: [0.0; 4],
                     ..Default::default()
                 }.wrap(&state),
@@ -105,7 +105,7 @@ pub fn build_main() -> UiState {
                     margin: OutArea::vertical(Px(1.0)),
                     width: Relative(1.0),
                     height: Px(41.0),
-                    color: Color::new(0.06, 0.06, 0.06, 1.0),
+                    color: Color::rgb(35, 35, 35),
                     border: [0.0; 4],
                     ..Default::default()
                 }.wrap(&state),
@@ -113,7 +113,7 @@ pub fn build_main() -> UiState {
                     margin: OutArea::vertical(Px(1.0)),
                     width: Relative(1.0),
                     height: Px(41.0),
-                    color: Color::new(0.06, 0.06, 0.06, 1.0),
+                    color: Color::rgb(35, 35, 35),
                     border: [0.0; 4],
                     ..Default::default()
                 }.wrap(&state),
@@ -130,15 +130,15 @@ fn on_click(context: CallContext) {
     let text: &mut Text = unsafe { button.childs[0].downcast_mut() };
     match button.state {
         ButtonState::Normal => {
-            button.color = Color::new(0.06, 0.06, 0.06, 1.0);
+            button.color = Color::rgb(35, 35, 35);
             text.set_new("Button");
         },
         ButtonState::Hovered => {
-            button.color = Color::new(0.1, 0.1, 0.1, 1.0);
+            button.color = Color::rgb(40, 40, 40);
             text.set_new("Hover");
         },
         ButtonState::Pressed => {
-            button.color = Color::new(0.2, 0.2, 0.2, 1.0);
+            button.color = Color::rgb(45, 45, 45);
             text.set_new("Press");
         },
         ButtonState::Disabled => unreachable!(),

@@ -19,7 +19,7 @@ pub fn create_post_pipeline(device: &ash::Device, window_size: winit::dpi::Physi
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         stage: vk::ShaderStageFlags::VERTEX,
         module: vertex_shader_module,
-        p_name:  b"main\0".as_ptr() as *const _,
+        p_name:  c"main".as_ptr(),
         ..Default::default()
     };
 
@@ -27,7 +27,7 @@ pub fn create_post_pipeline(device: &ash::Device, window_size: winit::dpi::Physi
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         stage: vk::ShaderStageFlags::FRAGMENT,
         module: fragment_shader_module,
-        p_name:  b"main\0".as_ptr() as *const _,
+        p_name:  c"main".as_ptr(),
         ..Default::default()
     };
 
