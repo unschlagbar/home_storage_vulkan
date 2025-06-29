@@ -108,7 +108,12 @@ impl Swapchain {
     fn query_swap_chain_support(base: &VkBase, present_mode: vk::PresentModeKHR, surface_loader: &surface::Instance, surface: SurfaceKHR) -> (SurfaceCapabilitiesKHR, vk::SurfaceFormatKHR, vk::PresentModeKHR) {
         unsafe {
             let capabilities = surface_loader.get_physical_device_surface_capabilities(base.physical_device, surface).unwrap_unchecked();
-            let format = surface_loader.get_physical_device_surface_formats(base.physical_device, surface).unwrap_unchecked().into_iter().find(|format| {format.format == vk::Format::R8G8B8A8_UNORM && format.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR}).unwrap();
+            let target_format = if cfg!(target_os = "android") {
+                vk::Format::R8G8B8A8_UNORM
+            } else {
+                vk::Format::B8G8R8A8_UNORM
+            };
+            let format = surface_loader.get_physical_device_surface_formats(base.physical_device, surface).unwrap_unchecked().into_iter().find(|format| {format.format == target_format && format.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR}).unwrap();
             let present_mode = surface_loader.get_physical_device_surface_present_modes(base.physical_device, surface).unwrap_unchecked().into_iter().find(|pm| {*pm == present_mode}).unwrap_or(PresentModeKHR::FIFO);
             (capabilities, format, present_mode)
         }
