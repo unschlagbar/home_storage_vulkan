@@ -22,7 +22,7 @@ use winit::{dpi::PhysicalSize, raw_window_handle::{HasDisplayHandle, HasWindowHa
 use super::buffer::create_uniform_buffers;
 use super::UniformBufferObject;
 use super::main_pipeline;
-use crate::{game::{app::FPS_LIMIT, Cube, World}, graphics::Vertex};
+use crate::{game::{app::FPS_LIMIT, Cube, World}, graphics::{Swapchain, Vertex}};
 
 pub const MAXFRAMESINFLIGHT: usize = 1;
 
@@ -93,7 +93,7 @@ impl VulkanRender {
         let single_time_command_pool = Self::create_single_time_command_pool(&base);
 
         let window_size = window.inner_size();
-        let mut swapchain = super::Swapchain::create(&base, window_size, if FPS_LIMIT {vk::PresentModeKHR::FIFO} else {vk::PresentModeKHR::IMMEDIATE}, surface_loader, surface);
+        let mut swapchain = Swapchain::create(&base, if FPS_LIMIT {vk::PresentModeKHR::FIFO} else {vk::PresentModeKHR::IMMEDIATE}, surface_loader, surface);
         let render_pass = Self::create_render_pass(&base, swapchain.format, true, true, false, true);
 
         let (vertices, indices) = Cube::generate_vertices();
@@ -133,9 +133,7 @@ impl VulkanRender {
         staging_buf.destroy(&base.device);
         staging_buf2.destroy(&base.device);
         
-        swapchain.create_framebuffer(&base, render_pass, depth_image.view, window_size);
-        
-        
+        swapchain.recreate(&base, window_size, render_pass, depth_image.view);
         
         let ui_state = world.ui.clone();
         
