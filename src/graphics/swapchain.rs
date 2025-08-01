@@ -84,7 +84,6 @@ impl Swapchain {
     }
 
     pub fn recreate(&mut self, base: &VkBase, window_size: PhysicalSize<u32>, render_pass: RenderPass, attachment: ImageView) {
-        println!("recreate");
         unsafe  {
             self.capabilities = self.surface_loader.get_physical_device_surface_capabilities(base.physical_device, self.surface).unwrap();
         }
