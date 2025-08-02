@@ -1,8 +1,8 @@
-use std::{cell::RefCell, rc::Rc};
+use super::{Camera, Cube};
+use crate::graphics::VulkanRender;
 use cgmath::Matrix4;
 use iron_oxide::{graphics::SinlgeTimeCommands, physics::System, primitives::Vec3, ui::UiState};
-use crate::graphics::VulkanRender;
-use super::{Camera, Cube};
+use std::{cell::RefCell, rc::Rc};
 
 #[repr(C)]
 #[derive()]
@@ -24,9 +24,9 @@ impl World {
         plane.rigit_body.position_lock = Vec3::zero();
         plane.rigit_body.mass = 1000000.0;
         plane2.rigit_body.mass = 2.0;
-        let system = System::new();
+        let system = System::default();
 
-        let cubes =  vec![plane, cube, plane2];
+        let cubes = vec![plane, cube, plane2];
 
         Self {
             camera: Camera::default(),
@@ -40,7 +40,7 @@ impl World {
 
     pub fn get_instances(&self) -> Vec<Matrix4<f32>> {
         let mut instances = Vec::with_capacity(self.cubes.len());
-        
+
         for cube in &self.cubes {
             instances.push(cube.get_instance());
         }
@@ -53,7 +53,7 @@ impl World {
             return;
         }
         self.system.update(&mut self.cubes, delta_time);
-        
+
         if self.movement_vector != Vec3::zero() {
             self.camera.process_movement(self.movement_vector, 0.5);
         }
@@ -62,15 +62,27 @@ impl World {
 
         let buffer_size = size_of::<Matrix4<f32>>() as u64 * instances.len() as u64;
 
-        let mapped_memory = renderer.staging_buffer.map_memory(&renderer.base.device, buffer_size, 0);
+        let mapped_memory =
+            renderer
+                .staging_buffer
+                .map_memory(&renderer.base.device, buffer_size, 0);
         unsafe {
-            std::ptr::copy_nonoverlapping(instances.as_ptr() as *const u8, mapped_memory as _, buffer_size as usize);
+            std::ptr::copy_nonoverlapping(
+                instances.as_ptr() as *const u8,
+                mapped_memory as _,
+                buffer_size as usize,
+            );
             renderer.staging_buffer.unmap_memory(&renderer.base.device);
         };
 
         let cmd_buf = SinlgeTimeCommands::begin(&renderer.base, renderer.command_pool);
-        renderer.staging_buffer.copy(&renderer.base, &renderer.instance_buffer, buffer_size, 0, cmd_buf);
+        renderer.staging_buffer.copy(
+            &renderer.base,
+            &renderer.instance_buffer,
+            buffer_size,
+            0,
+            cmd_buf,
+        );
         SinlgeTimeCommands::end(&renderer.base, renderer.command_pool, cmd_buf);
     }
-
 }

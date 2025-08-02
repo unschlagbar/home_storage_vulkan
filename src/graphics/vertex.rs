@@ -1,8 +1,7 @@
 use std::mem::offset_of;
 
-use cgmath::{Matrix4, Vector2, Vector3};
 use ash::vk;
-
+use cgmath::{Matrix4, Vector2, Vector3};
 
 #[derive(Debug, Clone, PartialEq)]
 #[repr(C)]
@@ -24,7 +23,7 @@ impl Vertex {
             binding: 1,
             stride: std::mem::size_of::<Matrix4<f32>>() as _,
             input_rate: vk::VertexInputRate::INSTANCE,
-        }
+        },
     ];
 
     pub const GET_ATTRIBUTE_DESCRIPTIONS: [vk::VertexInputAttributeDescription; 8] = [

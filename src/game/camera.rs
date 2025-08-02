@@ -1,5 +1,5 @@
-use iron_oxide::primitives::{Vec2, Vec3};
 use cgmath::{Matrix4, Point3, Vector3};
+use iron_oxide::primitives::{Vec2, Vec3};
 
 pub struct Camera {
     pub position: Vec3,
@@ -12,7 +12,6 @@ pub struct Camera {
 }
 
 impl Camera {
-
     pub fn process_mouse_movement(&mut self, delta: Vec2, sensitivity: f32) {
         self.yaw += delta.x * sensitivity;
         self.pitch += delta.y * sensitivity;
@@ -21,7 +20,12 @@ impl Camera {
     }
 
     pub fn process_movement(&mut self, delta: Vec3, speed: f32) {
-        let front = Vec3::new(self.yaw.to_radians().cos(), 0.0, self.yaw.to_radians().sin()).normalize();
+        let front = Vec3::new(
+            self.yaw.to_radians().cos(),
+            0.0,
+            self.yaw.to_radians().sin(),
+        )
+        .normalize();
         let right = front.cross(Vec3::new(0.0, -1.0, 0.0)).normalize();
 
         self.position += front * delta.z * speed;
@@ -39,9 +43,14 @@ impl Camera {
             yaw_radians.cos() * pitch_radians.cos(),
             pitch_radians.sin(),
             yaw_radians.sin() * pitch_radians.cos(),
-        ).normalize();
+        )
+        .normalize();
 
-        Matrix4::look_to_rh(Point3::new(self.position.x, self.position.y, self.position.z), front.into(), Vector3::new(0.0, -1.0, 0.0))
+        Matrix4::look_to_rh(
+            Point3::new(self.position.x, self.position.y, self.position.z),
+            front.into(),
+            Vector3::new(0.0, -1.0, 0.0),
+        )
     }
 
     pub fn projection(&self, aspect_ratio: f32) -> Matrix4<f32> {

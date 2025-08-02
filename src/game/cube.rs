@@ -1,13 +1,16 @@
 use crate::graphics::Vertex;
-use cgmath::{vec3, Matrix4, Vector2};
-use iron_oxide::{physics::{Collision, ImplRigitBody, RigitBody}, primitives::Vec3};
+use cgmath::{Matrix4, Vector2, vec3};
+use iron_oxide::{
+    physics::{Collision, ImplRigitBody, RigitBody},
+    primitives::Vec3,
+};
 #[derive(Debug)]
 pub struct Cube {
     pub rigit_body: RigitBody,
 }
 
 impl Cube {
-    pub const fn new(position: Vec3, size: Vec3, gravity:bool) -> Self {
+    pub const fn new(position: Vec3, size: Vec3, gravity: bool) -> Self {
         Self {
             rigit_body: RigitBody {
                 on_ground: false,
@@ -26,8 +29,15 @@ impl Cube {
     }
 
     pub fn get_instance(&self) -> Matrix4<f32> {
-        Matrix4::from_translation(vec3(self.rigit_body.position.x, self.rigit_body.position.y, self.rigit_body.position.z))
-        * Matrix4::from_nonuniform_scale(self.rigit_body.size.x, self.rigit_body.size.y, self.rigit_body.size.z)
+        Matrix4::from_translation(vec3(
+            self.rigit_body.position.x,
+            self.rigit_body.position.y,
+            self.rigit_body.position.z,
+        )) * Matrix4::from_nonuniform_scale(
+            self.rigit_body.size.x,
+            self.rigit_body.size.y,
+            self.rigit_body.size.z,
+        )
     }
 
     pub fn generate_vertices() -> (Vec<Vertex>, Vec<u32>) {
@@ -94,14 +104,19 @@ impl Cube {
             }
 
             let v_len = vertices.len() as u32;
-            indices.extend_from_slice(&[v_len - 6, v_len - 5, v_len - 4, v_len - 3, v_len - 2, v_len - 1]);
+            indices.extend_from_slice(&[
+                v_len - 6,
+                v_len - 5,
+                v_len - 4,
+                v_len - 3,
+                v_len - 2,
+                v_len - 1,
+            ]);
         }
 
         (vertices, indices)
     }
-
 }
-
 
 impl ImplRigitBody for Cube {
     fn velocity(&mut self) -> &mut Vec3 {
@@ -113,7 +128,10 @@ impl ImplRigitBody for Cube {
     }
 
     fn collision(&mut self) -> Collision {
-        Collision::Cube { center: self.rigit_body.position, size: self.rigit_body.size }
+        Collision::Cube {
+            center: self.rigit_body.position,
+            size: self.rigit_body.size,
+        }
     }
 
     fn rigit_body(&mut self) -> &mut RigitBody {

@@ -1,15 +1,12 @@
 use std::mem::MaybeUninit;
 
 use ash::{
-    khr::{swapchain, surface},
+    Device,
+    khr::{surface, swapchain},
     vk::{
-        self,
-        ImageView, PresentModeKHR,
-        RenderPass, SurfaceCapabilitiesKHR,
-        SurfaceFormatKHR, SurfaceKHR,
-        SurfaceTransformFlagsKHR, SwapchainKHR
+        self, ImageView, PresentModeKHR, RenderPass, SurfaceCapabilitiesKHR, SurfaceFormatKHR,
+        SurfaceKHR, SurfaceTransformFlagsKHR, SwapchainKHR,
     },
-    Device
 };
 use iron_oxide::graphics::VkBase;
 use winit::dpi::PhysicalSize;
@@ -28,7 +25,12 @@ pub struct Swapchain {
 }
 
 impl Swapchain {
-    pub fn create(base: &VkBase, present_mode: vk::PresentModeKHR, surface_loader: surface::Instance, surface: SurfaceKHR) -> Self {
+    pub fn create(
+        base: &VkBase,
+        present_mode: vk::PresentModeKHR,
+        surface_loader: surface::Instance,
+        surface: SurfaceKHR,
+    ) -> Self {
         let loader = swapchain::Device::new(&base.instance, &base.device);
         let target_format = if cfg!(target_os = "android") {
             vk::Format::R8G8B8A8_UNORM
@@ -36,13 +38,33 @@ impl Swapchain {
             vk::Format::B8G8R8A8_UNORM
         };
 
-        let (capabilities, format, present_mode) = unsafe {(
-            surface_loader.get_physical_device_surface_capabilities(base.physical_device, surface).unwrap(),
-            surface_loader.get_physical_device_surface_formats(base.physical_device, surface).unwrap_unchecked().into_iter().find(|format| {format.format == target_format && format.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR}).unwrap(),
-            surface_loader.get_physical_device_surface_present_modes(base.physical_device, surface).unwrap_unchecked().into_iter().find(|pm| {*pm == present_mode}).unwrap_or(PresentModeKHR::FIFO)
-        )};
+        let (capabilities, format, present_mode) = unsafe {
+            (
+                surface_loader
+                    .get_physical_device_surface_capabilities(base.physical_device, surface)
+                    .unwrap(),
+                surface_loader
+                    .get_physical_device_surface_formats(base.physical_device, surface)
+                    .unwrap_unchecked()
+                    .into_iter()
+                    .find(|format| {
+                        format.format == target_format
+                            && format.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR
+                    })
+                    .unwrap(),
+                surface_loader
+                    .get_physical_device_surface_present_modes(base.physical_device, surface)
+                    .unwrap_unchecked()
+                    .into_iter()
+                    .find(|pm| *pm == present_mode)
+                    .unwrap_or(PresentModeKHR::FIFO),
+            )
+        };
 
-        let composite_alpha = if capabilities.supported_composite_alpha.contains(vk::CompositeAlphaFlagsKHR::OPAQUE) {
+        let composite_alpha = if capabilities
+            .supported_composite_alpha
+            .contains(vk::CompositeAlphaFlagsKHR::OPAQUE)
+        {
             vk::CompositeAlphaFlagsKHR::OPAQUE
         } else {
             vk::CompositeAlphaFlagsKHR::INHERIT
@@ -55,6 +77,7 @@ impl Swapchain {
             surface,
             image_views: Vec::with_capacity(0),
             #[allow(invalid_value)]
+            #[allow(clippy::uninit_assumed_init)]
             capabilities: unsafe { MaybeUninit::uninit().assume_init() },
             format,
             present_mode,
@@ -63,7 +86,13 @@ impl Swapchain {
         }
     }
 
-    pub fn create_framebuffer(&mut self, base: &VkBase, window_size: PhysicalSize<u32>, render_pass: RenderPass, attachment: ImageView) {
+    pub fn create_framebuffer(
+        &mut self,
+        base: &VkBase,
+        window_size: PhysicalSize<u32>,
+        render_pass: RenderPass,
+        attachment: ImageView,
+    ) {
         if self.framebuffers.capacity() == 0 {
             self.framebuffers = vec![vk::Framebuffer::null(); self.image_views.len()];
         }
@@ -79,19 +108,35 @@ impl Swapchain {
                 ..Default::default()
             };
 
-            self.framebuffers[i] = unsafe { base.device.create_framebuffer(&main_create_info, None).unwrap() };
+            self.framebuffers[i] = unsafe {
+                base.device
+                    .create_framebuffer(&main_create_info, None)
+                    .unwrap()
+            };
         }
     }
 
-    pub fn recreate(&mut self, base: &VkBase, window_size: PhysicalSize<u32>, render_pass: RenderPass, attachment: ImageView) {
-        unsafe  {
-            self.capabilities = self.surface_loader.get_physical_device_surface_capabilities(base.physical_device, self.surface).unwrap();
+    pub fn recreate(
+        &mut self,
+        base: &VkBase,
+        window_size: PhysicalSize<u32>,
+        render_pass: RenderPass,
+        attachment: ImageView,
+    ) {
+        unsafe {
+            self.capabilities = self
+                .surface_loader
+                .get_physical_device_surface_capabilities(base.physical_device, self.surface)
+                .unwrap();
         }
 
         let image_extent = if self.capabilities.current_extent.width != u32::MAX {
             self.capabilities.current_extent
         } else {
-            vk::Extent2D { width: window_size.width, height: window_size.height }
+            vk::Extent2D {
+                width: window_size.width,
+                height: window_size.height,
+            }
         };
 
         let min_image_count = if self.capabilities.min_image_count > 0 {
@@ -120,14 +165,17 @@ impl Swapchain {
         };
 
         unsafe {
-            let new = self.loader.create_swapchain(&create_info, None).unwrap_unchecked();
+            let new = self
+                .loader
+                .create_swapchain(&create_info, None)
+                .unwrap_unchecked();
             for i in 0..self.image_views.len() {
                 base.device.destroy_framebuffer(self.framebuffers[i], None);
                 base.device.destroy_image_view(self.image_views[i], None);
             }
             self.loader.destroy_swapchain(self.inner, None);
             self.inner = new;
-        } 
+        }
 
         self.create_image_views(base);
         self.create_framebuffer(base, window_size, render_pass, attachment);
@@ -139,9 +187,9 @@ impl Swapchain {
             self.image_views = vec![vk::ImageView::null(); present_images.len()];
         }
 
-        for i in 0..present_images.len() {
+        for (i, image) in present_images.into_iter().enumerate() {
             let create_info = vk::ImageViewCreateInfo {
-                image: present_images[i],
+                image,
                 view_type: vk::ImageViewType::TYPE_2D,
                 format: self.format.format,
                 subresource_range: vk::ImageSubresourceRange {
@@ -153,17 +201,18 @@ impl Swapchain {
                 },
                 ..Default::default()
             };
-           self.image_views[i] = unsafe { base.device.create_image_view(&create_info, None).unwrap() };
+            self.image_views[i] =
+                unsafe { base.device.create_image_view(&create_info, None).unwrap() };
         }
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        unsafe  {
+        unsafe {
             for i in 0..self.image_views.len() {
                 device.destroy_framebuffer(self.framebuffers[i], None);
                 device.destroy_image_view(self.image_views[i], None);
             }
-        
+
             self.loader.destroy_swapchain(self.inner, None);
             self.surface_loader.destroy_surface(self.surface, None);
         }

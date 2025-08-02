@@ -1,17 +1,25 @@
+use super::{World, states::build_main};
+use crate::graphics::VulkanRender;
+use iron_oxide::{
+    primitives::Vec2,
+    ui::{DirtyFlags, UiEvent, UiState},
+};
+use log::info;
 use std::{
     cell::RefCell,
-    mem::{forget, MaybeUninit},
+    mem::{MaybeUninit, forget},
     rc::Rc,
     thread::sleep,
-    time::{Duration, Instant}
+    time::{Duration, Instant},
 };
-use iron_oxide::{primitives::Vec2, ui::{DirtyFlags, UiEvent, UiState}};
-use log::info;
 use winit::{
-    application::ApplicationHandler, dpi::{PhysicalPosition, PhysicalSize}, event::{ElementState, MouseButton, TouchPhase, WindowEvent}, event_loop::{ActiveEventLoop, ControlFlow}, keyboard::{KeyCode, PhysicalKey}, window::{Theme, Window, WindowId}
+    application::ApplicationHandler,
+    dpi::{PhysicalPosition, PhysicalSize},
+    event::{ElementState, MouseButton, TouchPhase, WindowEvent},
+    event_loop::{ActiveEventLoop, ControlFlow},
+    keyboard::{KeyCode, PhysicalKey},
+    window::{Theme, Window, WindowId},
 };
-use crate::graphics::VulkanRender;
-use super::{states::build_main, World};
 
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
@@ -37,19 +45,20 @@ impl App {
     #[allow(unused)]
     pub fn run() -> Self {
         #[allow(invalid_value)]
+        #[allow(clippy::uninit_assumed_init)]
         let renderer = Rc::new(RefCell::new(unsafe { MaybeUninit::uninit().assume_init() }));
-        let ui: Rc<RefCell<UiState>> = Rc::new(RefCell::new(build_main()));
+        let ui = Rc::new(RefCell::new(build_main()));
         let world = World::create(renderer.clone(), ui.clone());
 
         Self {
             window: MaybeUninit::uninit(),
             renderer,
             init: false,
-            cursor_pos: PhysicalPosition { x: 0.0, y: 0.0 },
-            world, 
+            cursor_pos: PhysicalPosition::default(),
+            world,
             time: Instant::now(),
             ui,
-            last_cursor_location: PhysicalPosition { x: 0.0, y: 0.0 },
+            last_cursor_location: PhysicalPosition::default(),
             touch_id: 0,
             mouse_pressed: false,
             sim_speed: 1.0,
@@ -70,7 +79,10 @@ impl ApplicationHandler for App {
         let mut renderer = self.renderer.borrow_mut();
 
         match event {
-            WindowEvent::CursorMoved { device_id: _,  position } => {
+            WindowEvent::CursorMoved {
+                device_id: _,
+                position,
+            } => {
                 let in_ui;
 
                 {
@@ -79,58 +91,79 @@ impl ApplicationHandler for App {
                 }
 
                 if in_ui.is_none() && self.mouse_pressed {
-                    let delta = Vec2::new(self.cursor_pos.x as f32 - position.x as f32, self.cursor_pos.y as f32 - position.y as f32);
+                    let delta = Vec2::new(
+                        self.cursor_pos.x as f32 - position.x as f32,
+                        self.cursor_pos.y as f32 - position.y as f32,
+                    );
                     self.world.camera.process_mouse_movement(delta, 0.25);
                 }
 
                 self.cursor_pos = position;
-            },
-            WindowEvent::MouseInput { device_id: _, state, button } => {
-                match button {
-                    MouseButton::Left => {
-                        self.mouse_pressed = state == ElementState::Pressed;
-                        renderer.ui_state.borrow_mut().update_cursor(self.cursor_pos.into(), 
-                            match state {
-                                ElementState::Pressed => UiEvent::Press,
-                                ElementState::Released => UiEvent::Release,
-                            }
-                        );
-                    }
-                    _ => ()
+            }
+            WindowEvent::MouseInput {
+                device_id: _,
+                state,
+                button,
+            } => match button {
+                MouseButton::Left => {
+                    self.mouse_pressed = state == ElementState::Pressed;
+                    renderer.ui_state.borrow_mut().update_cursor(
+                        self.cursor_pos.into(),
+                        match state {
+                            ElementState::Pressed => UiEvent::Press,
+                            ElementState::Released => UiEvent::Release,
+                        },
+                    );
                 }
+                _ => (),
             },
             WindowEvent::Touch(touch) => {
                 let cursor_pos = touch.location.into();
                 match touch.phase {
                     TouchPhase::Started => {
-                        if touch.id != 0 || self.touch_id != touch.id { return }
+                        if touch.id != 0 || self.touch_id != touch.id {
+                            return;
+                        }
                         self.touch_id = touch.id;
-                        renderer.ui_state.borrow_mut().update_cursor(cursor_pos, UiEvent::Press);
+                        renderer
+                            .ui_state
+                            .borrow_mut()
+                            .update_cursor(cursor_pos, UiEvent::Press);
                         self.last_cursor_location = touch.location;
-                    },
+                    }
                     TouchPhase::Moved => {
                         self.last_cursor_location = touch.location;
-                        renderer.ui_state.borrow_mut().update_cursor(cursor_pos, UiEvent::Move);
-                    },
+                        renderer
+                            .ui_state
+                            .borrow_mut()
+                            .update_cursor(cursor_pos, UiEvent::Move);
+                    }
                     TouchPhase::Ended | TouchPhase::Cancelled => {
                         self.touch_id = 0;
-                        renderer.ui_state.borrow_mut().update_cursor(cursor_pos, UiEvent::Release);
+                        renderer
+                            .ui_state
+                            .borrow_mut()
+                            .update_cursor(cursor_pos, UiEvent::Release);
                     }
                 }
-            },
+            }
             WindowEvent::RedrawRequested => {
                 let time_stamp = self.time.elapsed().as_secs_f32();
                 if !FPS_LIMIT || time_stamp > self.target_frame_time * 0.93 {
                     self.time = Instant::now();
-                    self.world.update(self.sim_speed * time_stamp, &mut renderer);
+                    self.world
+                        .update(self.sim_speed * time_stamp, &mut renderer);
                     renderer.draw_frame();
                 } else {
                     sleep(Duration::from_nanos(800_000));
                 };
-            },
-            WindowEvent::KeyboardInput { device_id: _, event, is_synthetic: _ } => {
+            }
+            WindowEvent::KeyboardInput {
+                device_id: _,
+                event,
+                is_synthetic: _,
+            } => {
                 if let PhysicalKey::Code(key_code) = event.physical_key {
-
                     match key_code {
                         KeyCode::F1 => {
                             if event.state.is_pressed() {
@@ -140,7 +173,7 @@ impl ApplicationHandler for App {
                                     value.dirty = DirtyFlags::Size;
                                 }
                             }
-                        },
+                        }
                         KeyCode::KeyX => {
                             if event.state.is_pressed() {
                                 if self.sim_speed == 0.0 {
@@ -149,53 +182,53 @@ impl ApplicationHandler for App {
                                     self.sim_speed = 0.0;
                                 }
                             }
-                        },
+                        }
                         KeyCode::KeyA => {
                             if event.state.is_pressed() {
                                 self.world.movement_vector.x = -1.0;
                             } else if self.world.movement_vector.x == -1.0 {
                                 self.world.movement_vector.x = 0.0;
                             }
-                        },
+                        }
                         KeyCode::KeyD => {
                             if event.state.is_pressed() {
                                 self.world.movement_vector.x = 1.0;
                             } else if self.world.movement_vector.x == 1.0 {
                                 self.world.movement_vector.x = 0.0;
                             }
-                        },
+                        }
                         KeyCode::KeyW => {
                             if event.state.is_pressed() {
                                 self.world.movement_vector.z = 1.0;
                             } else if self.world.movement_vector.z == 1.0 {
                                 self.world.movement_vector.z = 0.0;
                             }
-                         },
+                        }
                         KeyCode::KeyS => {
                             if event.state.is_pressed() {
                                 self.world.movement_vector.z = -1.0;
                             } else if self.world.movement_vector.z == -1.0 {
                                 self.world.movement_vector.z = 0.0;
                             }
-                        },
+                        }
                         KeyCode::Space => {
                             if event.state.is_pressed() {
                                 self.world.movement_vector.y = 1.0;
                             } else if self.world.movement_vector.y == 1.0 {
                                 self.world.movement_vector.y = 0.0;
                             }
-                        },
+                        }
                         KeyCode::ShiftLeft => {
                             if event.state.is_pressed() {
                                 self.world.movement_vector.y = -1.0;
                             } else if self.world.movement_vector.y == -1.0 {
                                 self.world.movement_vector.y = 0.0;
                             }
-                        },
-                        _ => ()
+                        }
+                        _ => (),
                     }
                 }
-            },
+            }
             WindowEvent::Resized(new_size) => {
                 if !self.init {
                     return;
@@ -206,11 +239,11 @@ impl ApplicationHandler for App {
                 }
                 renderer.recreate_swapchain(size);
                 self.world.camera.moved = true;
-            },
+            }
             WindowEvent::CloseRequested => {
                 event_loop.exit();
                 unsafe { renderer.base.device.device_wait_idle().unwrap_unchecked() };
-            },
+            }
             _ => (),
         }
     }
@@ -228,11 +261,13 @@ impl ApplicationHandler for App {
         }
         self.init = false;
         let mut renderer = self.renderer.borrow_mut();
-        unsafe { renderer.base.device.device_wait_idle().unwrap_unchecked(); };
+        unsafe {
+            renderer.base.device.device_wait_idle().unwrap_unchecked();
+        };
         renderer.destroy();
         event_loop.set_control_flow(ControlFlow::Wait);
     }
-    
+
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         println!("resumed");
         if self.init {
@@ -243,7 +278,10 @@ impl ApplicationHandler for App {
 
         let window_attributes = Window::default_attributes()
             .with_title("Vulkan Homeserver")
-            .with_inner_size(PhysicalSize {width: WIDTH, height: HEIGHT})
+            .with_inner_size(PhysicalSize {
+                width: WIDTH,
+                height: HEIGHT,
+            })
             .with_visible(false)
             .with_theme(Some(Theme::Dark));
 
@@ -256,21 +294,37 @@ impl ApplicationHandler for App {
                 println!("Refresh rate not available");
             }
         }
-        forget(self.renderer.replace(VulkanRender::create(&window, &self.world)));
+        forget(
+            self.renderer
+                .replace(VulkanRender::create(&window, &self.world)),
+        );
 
         let mut renderer = self.renderer.borrow_mut();
-        
-        let shaders = (include_bytes!("../../spv/basic.vert.spv").as_ref(), include_bytes!("../../spv/basic.frag.spv").as_ref());
-        let font_shaders = (include_bytes!("../../spv/bitmap.vert.spv").as_ref(), include_bytes!("../../spv/bitmap.frag.spv").as_ref());
-        
+
+        let shaders = (
+            include_bytes!("../../spv/basic.vert.spv").as_ref(),
+            include_bytes!("../../spv/basic.frag.spv").as_ref(),
+        );
+        let font_shaders = (
+            include_bytes!("../../spv/bitmap.vert.spv").as_ref(),
+            include_bytes!("../../spv/bitmap.frag.spv").as_ref(),
+        );
+
         {
             let mut ui = self.ui.borrow_mut();
-            ui.init_graphics(&renderer.base, renderer.window_size, renderer.render_pass, renderer.ui_descriptor_set_layout, shaders, font_shaders);
+            ui.init_graphics(
+                &renderer.base,
+                renderer.window_size,
+                renderer.render_pass,
+                renderer.ui_descriptor_set_layout,
+                shaders,
+                font_shaders,
+            );
         }
-        
+
         renderer.draw_frame();
         window.set_visible(true);
-        
+
         self.window.write(window);
         event_loop.set_control_flow(ControlFlow::Poll);
         println!("window time: {:?}", self.time.elapsed());

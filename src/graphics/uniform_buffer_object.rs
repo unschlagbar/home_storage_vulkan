@@ -10,4 +10,4 @@ pub struct UniformBufferObject {
 #[repr(align(16))]
 pub struct UiUniformBufferObject {
     pub view_proj: Matrix4<f32>,
-} 
+}

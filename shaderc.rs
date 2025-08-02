@@ -8,11 +8,9 @@ const SPV_DIR: &str = "spv";
 
 fn main() -> Result<(), Error> {
     println!("cargo:rerun-if-changed={}", SHADER_DIR);
-
     let shader_compiler = env::var("VULKAN_SDK").unwrap() + "/Bin/glslc.exe";
 
-    let shader_files = get_shader_files(SHADER_DIR)?;
-    for shader_path in shader_files {
+    for shader_path in get_shader_files(SHADER_DIR)? {
         compile_shader(&shader_path, &shader_compiler)?;
     }
 
