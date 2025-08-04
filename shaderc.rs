@@ -1,7 +1,7 @@
-use std::{env, fs};
 use std::io::Error;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::{env, fs};
 
 const SHADER_DIR: &str = "shaders";
 const SPV_DIR: &str = "spv";
@@ -26,9 +26,12 @@ fn get_shader_files(dir: &str) -> Result<Vec<PathBuf>, Error> {
 
         if path.is_dir() {
             shader_files.extend(get_shader_files(path.to_str().unwrap())?);
-
         } else if let Some(extension) = path.extension() {
-            if extension == "frag" || extension == "vert" || extension == "comp" || extension == "geom" {
+            if extension == "frag"
+                || extension == "vert"
+                || extension == "comp"
+                || extension == "geom"
+            {
                 shader_files.push(path);
             }
         }
@@ -36,7 +39,6 @@ fn get_shader_files(dir: &str) -> Result<Vec<PathBuf>, Error> {
 
     Ok(shader_files)
 }
-
 
 fn get_spirv_output_path(shader_path: &Path) -> PathBuf {
     let extension = shader_path.file_name().unwrap().to_str().unwrap();
@@ -53,7 +55,10 @@ fn compile_shader(shader_path: &Path, compiler: &str) -> Result<(), Error> {
         .output()?;
 
     if !output.status.success() {
-        println!("cargo::error=Shader compilation failed for: {}", String::from_utf8_lossy(&output.stderr));
+        println!(
+            "cargo::error=Shader compilation failed for: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     Ok(())

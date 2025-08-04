@@ -1,3 +1,4 @@
+#![allow(unused)]
 use cgmath::{Matrix4, Point3, Vector3};
 use iron_oxide::primitives::{Vec2, Vec3};
 

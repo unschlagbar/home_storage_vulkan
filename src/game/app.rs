@@ -1,4 +1,4 @@
-use super::{World, states::build_main};
+use super::states::build_main;
 use crate::graphics::VulkanRender;
 use iron_oxide::{
     primitives::Vec2,
@@ -25,19 +25,16 @@ const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
 pub const FPS_LIMIT: bool = true;
 
-#[allow(dead_code)]
 pub struct App {
     pub init: bool,
     pub window: MaybeUninit<Window>,
     pub renderer: Rc<RefCell<VulkanRender>>,
     pub ui: Rc<RefCell<UiState>>,
     pub cursor_pos: PhysicalPosition<f64>,
-    pub world: World,
     pub time: Instant,
     pub last_cursor_location: PhysicalPosition<f64>,
     pub touch_id: u64,
     pub mouse_pressed: bool,
-    pub sim_speed: f32,
     pub target_frame_time: f32,
 }
 
@@ -48,20 +45,17 @@ impl App {
         #[allow(clippy::uninit_assumed_init)]
         let renderer = Rc::new(RefCell::new(unsafe { MaybeUninit::uninit().assume_init() }));
         let ui = Rc::new(RefCell::new(build_main()));
-        let world = World::create(renderer.clone(), ui.clone());
 
         Self {
             window: MaybeUninit::uninit(),
             renderer,
             init: false,
             cursor_pos: PhysicalPosition::default(),
-            world,
             time: Instant::now(),
             ui,
             last_cursor_location: PhysicalPosition::default(),
             touch_id: 0,
             mouse_pressed: false,
-            sim_speed: 1.0,
             target_frame_time: 1.0 / 144.0,
         }
     }
@@ -91,11 +85,10 @@ impl ApplicationHandler for App {
                 }
 
                 if in_ui.is_none() && self.mouse_pressed {
-                    let delta = Vec2::new(
+                    let _delta = Vec2::new(
                         self.cursor_pos.x as f32 - position.x as f32,
                         self.cursor_pos.y as f32 - position.y as f32,
                     );
-                    self.world.camera.process_mouse_movement(delta, 0.25);
                 }
 
                 self.cursor_pos = position;
@@ -151,8 +144,6 @@ impl ApplicationHandler for App {
                 let time_stamp = self.time.elapsed().as_secs_f32();
                 if !FPS_LIMIT || time_stamp > self.target_frame_time * 0.93 {
                     self.time = Instant::now();
-                    self.world
-                        .update(self.sim_speed * time_stamp, &mut renderer);
                     renderer.draw_frame();
                 } else {
                     sleep(Duration::from_nanos(800_000));
@@ -174,57 +165,6 @@ impl ApplicationHandler for App {
                                 }
                             }
                         }
-                        KeyCode::KeyX => {
-                            if event.state.is_pressed() {
-                                if self.sim_speed == 0.0 {
-                                    self.sim_speed = 1.0;
-                                } else {
-                                    self.sim_speed = 0.0;
-                                }
-                            }
-                        }
-                        KeyCode::KeyA => {
-                            if event.state.is_pressed() {
-                                self.world.movement_vector.x = -1.0;
-                            } else if self.world.movement_vector.x == -1.0 {
-                                self.world.movement_vector.x = 0.0;
-                            }
-                        }
-                        KeyCode::KeyD => {
-                            if event.state.is_pressed() {
-                                self.world.movement_vector.x = 1.0;
-                            } else if self.world.movement_vector.x == 1.0 {
-                                self.world.movement_vector.x = 0.0;
-                            }
-                        }
-                        KeyCode::KeyW => {
-                            if event.state.is_pressed() {
-                                self.world.movement_vector.z = 1.0;
-                            } else if self.world.movement_vector.z == 1.0 {
-                                self.world.movement_vector.z = 0.0;
-                            }
-                        }
-                        KeyCode::KeyS => {
-                            if event.state.is_pressed() {
-                                self.world.movement_vector.z = -1.0;
-                            } else if self.world.movement_vector.z == -1.0 {
-                                self.world.movement_vector.z = 0.0;
-                            }
-                        }
-                        KeyCode::Space => {
-                            if event.state.is_pressed() {
-                                self.world.movement_vector.y = 1.0;
-                            } else if self.world.movement_vector.y == 1.0 {
-                                self.world.movement_vector.y = 0.0;
-                            }
-                        }
-                        KeyCode::ShiftLeft => {
-                            if event.state.is_pressed() {
-                                self.world.movement_vector.y = -1.0;
-                            } else if self.world.movement_vector.y == -1.0 {
-                                self.world.movement_vector.y = 0.0;
-                            }
-                        }
                         _ => (),
                     }
                 }
@@ -238,7 +178,6 @@ impl ApplicationHandler for App {
                     return;
                 }
                 renderer.recreate_swapchain(size);
-                self.world.camera.moved = true;
             }
             WindowEvent::CloseRequested => {
                 event_loop.exit();
@@ -296,7 +235,7 @@ impl ApplicationHandler for App {
         }
         forget(
             self.renderer
-                .replace(VulkanRender::create(&window, &self.world)),
+                .replace(VulkanRender::create(&window, self.ui.clone())),
         );
 
         let mut renderer = self.renderer.borrow_mut();
