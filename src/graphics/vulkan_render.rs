@@ -89,7 +89,6 @@ impl VulkanRender {
         let render_pass =
             Self::create_render_pass(&base, swapchain.format, true, true, false, true);
 
-            
         let depth_image = Self::create_depth_resources(
             &base,
             command_pool,

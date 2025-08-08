@@ -1,16 +1,11 @@
 use super::states::build_main;
-use crate::graphics::VulkanRender;
-use iron_oxide::{
-    primitives::Vec2,
-    ui::{DirtyFlags, UiEvent, UiState},
-};
+use crate::{game::states::explorer::Explorer, graphics::VulkanRender};
+use iron_oxide::
+    ui::{DirtyFlags, UiEvent, UiState}
+;
 use log::info;
 use std::{
-    cell::RefCell,
-    mem::{MaybeUninit, forget},
-    rc::Rc,
-    thread::sleep,
-    time::{Duration, Instant},
+    cell::RefCell, mem::{forget, MaybeUninit}, rc::Rc, time::Instant
 };
 use winit::{
     application::ApplicationHandler,
@@ -23,18 +18,21 @@ use winit::{
 
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
-pub const FPS_LIMIT: bool = true;
+pub const FPS_LIMIT: bool = false;
 
 pub struct App {
     pub init: bool,
     pub window: MaybeUninit<Window>,
     pub renderer: Rc<RefCell<VulkanRender>>,
     pub ui: Rc<RefCell<UiState>>,
+    #[allow(unused)]
+    pub explorer: Explorer,
     pub cursor_pos: PhysicalPosition<f64>,
     pub time: Instant,
     pub last_cursor_location: PhysicalPosition<f64>,
     pub touch_id: u64,
     pub mouse_pressed: bool,
+    pub dirty: bool,
     pub target_frame_time: f32,
 }
 
@@ -44,7 +42,10 @@ impl App {
         #[allow(invalid_value)]
         #[allow(clippy::uninit_assumed_init)]
         let renderer = Rc::new(RefCell::new(unsafe { MaybeUninit::uninit().assume_init() }));
-        let ui = Rc::new(RefCell::new(build_main()));
+        let mut state = build_main();
+        let ui = Rc::new(RefCell::new(state));
+        let mut explorer = Explorer::new(ui.clone());
+        explorer.display_path("C:\\Dev".into());
 
         Self {
             window: MaybeUninit::uninit(),
@@ -53,9 +54,11 @@ impl App {
             cursor_pos: PhysicalPosition::default(),
             time: Instant::now(),
             ui,
+            explorer,
             last_cursor_location: PhysicalPosition::default(),
             touch_id: 0,
             mouse_pressed: false,
+            dirty: false,
             target_frame_time: 1.0 / 144.0,
         }
     }
@@ -84,11 +87,12 @@ impl ApplicationHandler for App {
                     in_ui = ui.update_cursor(position.into(), UiEvent::Move);
                 }
 
-                if in_ui.is_none() && self.mouse_pressed {
-                    let _delta = Vec2::new(
-                        self.cursor_pos.x as f32 - position.x as f32,
-                        self.cursor_pos.y as f32 - position.y as f32,
-                    );
+                if !in_ui.is_none() {
+                    self.dirty = true;
+                    self.window().request_redraw();
+                } else if self.dirty {
+                    self.window().request_redraw();
+                    self.dirty = false;
                 }
 
                 self.cursor_pos = position;
@@ -141,13 +145,7 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::RedrawRequested => {
-                let time_stamp = self.time.elapsed().as_secs_f32();
-                if !FPS_LIMIT || time_stamp > self.target_frame_time * 0.93 {
-                    self.time = Instant::now();
-                    renderer.draw_frame();
-                } else {
-                    sleep(Duration::from_nanos(800_000));
-                };
+                renderer.draw_frame();
             }
             WindowEvent::KeyboardInput {
                 device_id: _,
@@ -187,11 +185,7 @@ impl ApplicationHandler for App {
         }
     }
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        if self.init {
-            self.window().request_redraw();
-        }
-    }
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {}
 
     fn suspended(&mut self, event_loop: &ActiveEventLoop) {
         println!("suspended");
@@ -265,7 +259,7 @@ impl ApplicationHandler for App {
         window.set_visible(true);
 
         self.window.write(window);
-        event_loop.set_control_flow(ControlFlow::Poll);
+        event_loop.set_control_flow(ControlFlow::Wait);
         println!("window time: {:?}", self.time.elapsed());
         self.time = Instant::now();
     }
