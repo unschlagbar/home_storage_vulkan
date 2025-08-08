@@ -2,7 +2,7 @@
 name = "home_storage_vulkan"
 version = "0.1.0"
 edition = "2024"
-build = "shaderc.rs"
+#build = "shaderc.rs"
 
 [lib]
 name = "main"
@@ -13,8 +13,8 @@ codegen-units = 1
 lto = "fat"
 overflow-checks = false
 panic = "abort"
-debug = true
-strip = false
+debug = false
+strip = true
 
 [profile.dev]
 opt-level = 0
