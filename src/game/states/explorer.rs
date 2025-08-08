@@ -1,11 +1,18 @@
-use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
+#[cfg(target_os = "windows")]
+use std::env;
+use std::{cell::RefCell, fs, path::PathBuf, process::Command, rc::Rc};
 
 use iron_oxide::{
     graphics::formats::Color,
     ui::{
-        Button, ButtonState, CallContext, Container, DirtyFlags, ElementBuild, ErasedFnPointer, FlexDirection, OutArea, Text, UiState, UiUnit
+        Button, ButtonState, CallContext, Container, DirtyFlags, ElementBuild, ErasedFnPointer,
+        FlexDirection, OutArea, QueuedEvent, Text, UiEvent, UiState, UiUnit,
     },
 };
+
+const FOLDER_CLICK: u16 = 1;
+const FILE_CLICK: u16 = 2;
+const GO_BACK: u16 = 3;
 
 pub struct Explorer {
     pub content_window: u32,
@@ -38,6 +45,17 @@ impl Explorer {
                 3,
             );
             ui.add_child_to(
+                Button {
+                    color: Color::rgb(20, 20, 20),
+                    width: UiUnit::Px(40.0),
+                    height: UiUnit::Px(40.0),
+                    callback: ErasedFnPointer::from_free(on_click),
+                    message: GO_BACK,
+                    ..Default::default()
+                },
+                4,
+            );
+            ui.add_child_to(
                 Container {
                     color: Color::rgb(30, 30, 30),
                     width: UiUnit::Fill,
@@ -45,7 +63,7 @@ impl Explorer {
                     padding: OutArea::new(4.0),
                     flex_direction: FlexDirection::Vertical,
                     border: [1.0; 4],
-                    border_color: Color::rgb(150, 150, 150),
+                    border_color: Color::rgb(100, 100, 100),
                     ..Default::default()
                 },
                 3,
@@ -53,32 +71,49 @@ impl Explorer {
         };
         Self {
             content_window,
-            path: PathBuf::new(),
+            #[cfg(target_os = "windows")]
+            path: env::var("USERPROFILE").ok().unwrap_or("C:/".into()).into(),
+            #[cfg(not(target_os = "windows"))]
+            path: env::var("HOME").ok().unwrap_or("".into()).into(),
             ui,
         }
     }
 
-    pub fn display_path(&mut self, path: PathBuf) {
+    pub fn display_path(&mut self) {
         let mut ui = self.ui.borrow_mut();
         let content = ui.get_element(self.content_window).unwrap();
         content.clear_childs();
-        let struct_pointer = &(*self) as *const Self as *mut Self;
 
-        let entries = fs::read_dir(path).unwrap();
+        let entries = fs::read_dir(&self.path).unwrap();
         for entry in entries {
             let entry = entry.unwrap();
-            let name = entry.file_name();
+            let name = entry.file_name().into_string().unwrap();
+            if name.starts_with('.')
+                || entry
+                    .path()
+                    .extension()
+                    .unwrap_or_default()
+                    .to_str()
+                    .unwrap_or_default()
+                    == "ini"
+            {
+                continue;
+            }
             let child = Button {
                 color: Color::ZERO,
                 height: UiUnit::Px(30.0),
                 width: UiUnit::Relative(1.0),
-                margin: OutArea::new(1.0),
-                padding: OutArea::horizontal(UiUnit::Px(5.0)),
+                padding: OutArea::horizontal(UiUnit::Px(2.0)),
                 corner: [UiUnit::Px(5.0); 4],
-                callback: ErasedFnPointer::from_associated_vars::<Explorer>(struct_pointer, on_click),
+                callback: ErasedFnPointer::from_free(on_click),
+                message: if entry.path().is_dir() {
+                    FOLDER_CLICK
+                } else {
+                    FILE_CLICK
+                },
                 childs: vec![
                     Text {
-                        text: name.to_str().unwrap().to_string(),
+                        text: name,
                         ..Default::default()
                     }
                     .wrap(&ui),
@@ -88,11 +123,52 @@ impl Explorer {
             ui.add_child_to(child, self.content_window);
         }
     }
+
+    pub fn proceed_event(&mut self, event: QueuedEvent) {
+        if matches!(event.event, UiEvent::Press) {
+            match event.message {
+                FOLDER_CLICK => {
+                    {
+                        let mut ui = self.ui.borrow_mut();
+                        let element = ui.get_element(event.element_id).unwrap();
+                        let text = element.get_text().unwrap();
+                        self.path.push(text);
+                    };
+                    self.display_path();
+                }
+                GO_BACK => {
+                    if let Some(path) = self.path.parent() {
+                        self.path = path.into();
+                        self.display_path();
+                    }
+                }
+                FILE_CLICK => {
+                    let path = {
+                        let mut ui = self.ui.borrow_mut();
+                        let element = ui.get_element(event.element_id).unwrap();
+                        let text = element.get_text().unwrap();
+                        self.path.join(text)
+                    };
+
+                    if cfg!(target_os = "windows") {
+                        Command::new("cmd")
+                            .args(&["/C", "start", "", path.to_str().unwrap()])
+                            .spawn()
+                    } else if cfg!(target_os = "linux") {
+                        Command::new("xdg-open").arg(path).spawn()
+                    } else {
+                        Command::new("open").arg(path).spawn()
+                    }
+                    .expect("Datei konnte nicht geöffnet werden");
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
 }
 
-fn on_click(explorer: &mut Explorer, context: CallContext) {
+fn on_click(context: CallContext) {
     let button: &mut Button = unsafe { context.element.downcast_mut() };
-    let text: &mut Text = unsafe { button.childs[0].downcast_mut() };
     match button.state {
         ButtonState::Normal => {
             button.color = Color::ZERO;
@@ -101,9 +177,7 @@ fn on_click(explorer: &mut Explorer, context: CallContext) {
             button.color = Color::rgb(40, 40, 40);
         }
         ButtonState::Pressed => {
-            button.color = Color::rgb(40, 40, 40);
-            println!("path: , {}",&text.text);
-            explorer.display_path(explorer.path.join(&text.text));
+            button.color = Color::rgb(60, 60, 60);
         }
         ButtonState::Disabled => unreachable!(),
     }

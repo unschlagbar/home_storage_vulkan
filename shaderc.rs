@@ -7,7 +7,7 @@ const SHADER_DIR: &str = "shaders";
 const SPV_DIR: &str = "spv";
 
 fn main() -> Result<(), Error> {
-    println!("cargo:rerun-if-changed={}", SHADER_DIR);
+    println!("cargo:rerun-if-changed={SHADER_DIR}");
     let shader_compiler = env::var("VULKAN_SDK").unwrap() + "/Bin/glslc.exe";
 
     for shader_path in get_shader_files(SHADER_DIR)? {
@@ -21,8 +21,7 @@ fn get_shader_files(dir: &str) -> Result<Vec<PathBuf>, Error> {
     let mut shader_files = Vec::new();
 
     for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
+        let path = entry?.path();
 
         if path.is_dir() {
             shader_files.extend(get_shader_files(path.to_str().unwrap())?);
@@ -42,7 +41,7 @@ fn get_shader_files(dir: &str) -> Result<Vec<PathBuf>, Error> {
 
 fn get_spirv_output_path(shader_path: &Path) -> PathBuf {
     let extension = shader_path.file_name().unwrap().to_str().unwrap();
-    PathBuf::from(format!("{}/{}.spv", SPV_DIR, extension))
+    PathBuf::from(format!("{SPV_DIR}/{extension}.spv"))
 }
 
 fn compile_shader(shader_path: &Path, compiler: &str) -> Result<(), Error> {

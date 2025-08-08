@@ -14,6 +14,7 @@ pub fn create_uniform_buffers(
     let buffer_size = std::mem::size_of::<UniformBufferObject>() as u64;
 
     #[allow(invalid_value)]
+    #[allow(clippy::uninit_assumed_init)]
     let mut uniform_buffers: [graphics::Buffer; MAXFRAMESINFLIGHT] =
         [unsafe { MaybeUninit::uninit().assume_init() }; MAXFRAMESINFLIGHT];
     let mut mapped: [*mut c_void; MAXFRAMESINFLIGHT] = [null_mut(); MAXFRAMESINFLIGHT];

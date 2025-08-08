@@ -13,8 +13,8 @@ codegen-units = 1
 lto = "fat"
 overflow-checks = false
 panic = "abort"
-debug = false
-strip = true
+debug = true
+strip = false
 
 [profile.dev]
 opt-level = 0
@@ -34,3 +34,6 @@ android_logger = "0.15.1"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 winit = { version = "0.30.12" }
+
+[features]
+linked = ["iron_oxide/linked"]

@@ -1,17 +1,20 @@
+#![allow(clippy::collapsible_match)]
+#![allow(clippy::single_match)]
 use super::states::build_main;
 use crate::{game::states::explorer::Explorer, graphics::VulkanRender};
-use iron_oxide::
-    ui::{DirtyFlags, UiEvent, UiState}
-;
+use iron_oxide::ui::{DirtyFlags, UiEvent, UiState};
 use log::info;
 use std::{
-    cell::RefCell, mem::{forget, MaybeUninit}, rc::Rc, time::Instant
+    cell::RefCell,
+    mem::{MaybeUninit, forget},
+    rc::Rc,
+    time::Instant,
 };
 use winit::{
     application::ApplicationHandler,
     dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, MouseButton, TouchPhase, WindowEvent},
-    event_loop::{ActiveEventLoop, ControlFlow},
+    event_loop::ActiveEventLoop,
     keyboard::{KeyCode, PhysicalKey},
     window::{Theme, Window, WindowId},
 };
@@ -45,7 +48,7 @@ impl App {
         let mut state = build_main();
         let ui = Rc::new(RefCell::new(state));
         let mut explorer = Explorer::new(ui.clone());
-        explorer.display_path("C:\\Dev".into());
+        explorer.display_path();
 
         Self {
             window: MaybeUninit::uninit(),
@@ -73,7 +76,6 @@ impl ApplicationHandler for App {
         if !self.init {
             return;
         }
-        let mut renderer = self.renderer.borrow_mut();
 
         match event {
             WindowEvent::CursorMoved {
@@ -83,13 +85,14 @@ impl ApplicationHandler for App {
                 let in_ui;
 
                 {
-                    let mut ui = renderer.ui_state.borrow_mut();
+                    let mut ui = self.ui.borrow_mut();
                     in_ui = ui.update_cursor(position.into(), UiEvent::Move);
                 }
 
-                if !in_ui.is_none() {
+                if in_ui.is_new() {
                     self.dirty = true;
                     self.window().request_redraw();
+                } else if in_ui.is_old() {
                 } else if self.dirty {
                     self.window().request_redraw();
                     self.dirty = false;
@@ -104,13 +107,15 @@ impl ApplicationHandler for App {
             } => match button {
                 MouseButton::Left => {
                     self.mouse_pressed = state == ElementState::Pressed;
-                    renderer.ui_state.borrow_mut().update_cursor(
+                    self.ui.borrow_mut().update_cursor(
                         self.cursor_pos.into(),
                         match state {
                             ElementState::Pressed => UiEvent::Press,
                             ElementState::Released => UiEvent::Release,
                         },
                     );
+
+                    self.window().request_redraw();
                 }
                 _ => (),
             },
@@ -122,30 +127,27 @@ impl ApplicationHandler for App {
                             return;
                         }
                         self.touch_id = touch.id;
-                        renderer
-                            .ui_state
+                        self.ui
                             .borrow_mut()
                             .update_cursor(cursor_pos, UiEvent::Press);
                         self.last_cursor_location = touch.location;
                     }
                     TouchPhase::Moved => {
                         self.last_cursor_location = touch.location;
-                        renderer
-                            .ui_state
+                        self.ui
                             .borrow_mut()
                             .update_cursor(cursor_pos, UiEvent::Move);
                     }
                     TouchPhase::Ended | TouchPhase::Cancelled => {
                         self.touch_id = 0;
-                        renderer
-                            .ui_state
+                        self.ui
                             .borrow_mut()
                             .update_cursor(cursor_pos, UiEvent::Release);
                     }
                 }
             }
             WindowEvent::RedrawRequested => {
-                renderer.draw_frame();
+                self.renderer.borrow_mut().draw_frame();
             }
             WindowEvent::KeyboardInput {
                 device_id: _,
@@ -157,7 +159,7 @@ impl ApplicationHandler for App {
                         KeyCode::F1 => {
                             if event.state.is_pressed() {
                                 {
-                                    let mut value = renderer.ui_state.borrow_mut();
+                                    let mut value = self.ui.borrow_mut();
                                     value.visible = !value.visible;
                                     value.dirty = DirtyFlags::Size;
                                 }
@@ -172,6 +174,7 @@ impl ApplicationHandler for App {
                     return;
                 }
                 let size = self.window().inner_size();
+                let mut renderer = self.renderer.borrow_mut();
                 if new_size != size || new_size == renderer.window_size {
                     return;
                 }
@@ -179,26 +182,26 @@ impl ApplicationHandler for App {
             }
             WindowEvent::CloseRequested => {
                 event_loop.exit();
-                unsafe { renderer.base.device.device_wait_idle().unwrap_unchecked() };
             }
             _ => (),
+        }
+
+        let ui_event = self.ui.borrow_mut().event.take();
+        if let Some(event) = ui_event {
+            self.explorer.proceed_event(event);
         }
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {}
 
-    fn suspended(&mut self, event_loop: &ActiveEventLoop) {
+    fn suspended(&mut self, _: &ActiveEventLoop) {
         println!("suspended");
         if !self.init {
             return;
         }
         self.init = false;
         let mut renderer = self.renderer.borrow_mut();
-        unsafe {
-            renderer.base.device.device_wait_idle().unwrap_unchecked();
-        };
         renderer.destroy();
-        event_loop.set_control_flow(ControlFlow::Wait);
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -259,7 +262,6 @@ impl ApplicationHandler for App {
         window.set_visible(true);
 
         self.window.write(window);
-        event_loop.set_control_flow(ControlFlow::Wait);
         println!("window time: {:?}", self.time.elapsed());
         self.time = Instant::now();
     }

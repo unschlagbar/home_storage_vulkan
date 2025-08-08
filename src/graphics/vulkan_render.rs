@@ -1,3 +1,4 @@
+#![allow(clippy::modulo_one)]
 use ash::vk::{
     self, AccessFlags, CompareOp, Extent3D, Format, ImageUsageFlags, MemoryPropertyFlags,
     PipelineStageFlags, ShaderStageFlags,
@@ -69,8 +70,7 @@ impl VulkanRender {
         let display_handle = window.display_handle().unwrap().as_raw();
         let window_handle = window.window_handle().unwrap().as_raw();
 
-        let (base, surface_loader, surface) =
-            VkBase::create(Vec::new(), 0, display_handle, window_handle);
+        let (base, surface_loader, surface) = VkBase::create(0, display_handle, window_handle);
 
         let command_pool = Self::create_command_pool(&base);
         let single_time_command_pool = Self::create_single_time_command_pool(&base);
@@ -427,7 +427,7 @@ impl VulkanRender {
             return;
         }
 
-        self.current_frame = (self.current_frame + 1) % MAXFRAMESINFLIGHT;
+        self.current_frame = (self.current_frame + 1) % MAXFRAMESINFLIGHT
     }
 
     fn record_command_buffer(&mut self, index: u32, command_buffer: vk::CommandBuffer) {
@@ -498,7 +498,7 @@ impl VulkanRender {
                 vk::SubpassContents::INLINE,
             );
             self.ui_state.borrow().draw(
-                &device,
+                device,
                 command_buffer,
                 self.ui_descriptor_sets[self.current_frame],
             );
@@ -722,6 +722,7 @@ impl VulkanRender {
     pub fn destroy(&mut self) {
         unsafe {
             let device = &self.base.device;
+            device.device_wait_idle().unwrap_unchecked();
             #[cfg(debug_assertions)]
             self.base
                 .debug_utils
