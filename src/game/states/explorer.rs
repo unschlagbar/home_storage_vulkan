@@ -1,4 +1,3 @@
-#[cfg(target_os = "windows")]
 use std::env;
 use std::{cell::RefCell, fs, path::PathBuf, process::Command, rc::Rc};
 
