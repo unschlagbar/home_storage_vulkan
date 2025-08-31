@@ -8,7 +8,13 @@ const SPV_DIR: &str = "spv";
 
 fn main() -> Result<(), Error> {
     println!("cargo:rerun-if-changed={SHADER_DIR}");
-    let shader_compiler = env::var("VULKAN_SDK").unwrap() + "/Bin/glslc.exe";
+    let shader_compiler = match env::var("VULKAN_SDK") {
+        Ok(vulkan_sdk) => vulkan_sdk + "/Bin/glslc.exe",
+        Err(_) => {
+            println!("cargo::error=Vulkan SDK env variable not set");
+            return Ok(());
+        }
+    };
 
     for shader_path in get_shader_files(SHADER_DIR)? {
         compile_shader(&shader_path, &shader_compiler)?;
@@ -25,17 +31,15 @@ fn get_shader_files(dir: &str) -> Result<Vec<PathBuf>, Error> {
 
         if path.is_dir() {
             shader_files.extend(get_shader_files(path.to_str().unwrap())?);
-        } else if let Some(extension) = path.extension() {
-            if extension == "frag"
+        } else if let Some(extension) = path.extension()
+            && (extension == "frag"
                 || extension == "vert"
                 || extension == "comp"
-                || extension == "geom"
-            {
-                shader_files.push(path);
-            }
+                || extension == "geom")
+        {
+            shader_files.push(path);
         }
     }
-
     Ok(shader_files)
 }
 

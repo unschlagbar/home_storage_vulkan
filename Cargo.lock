@@ -697,6 +697,8 @@ dependencies = [
  "ash-window",
  "base64",
  "cgmath",
+ "png",
+ "rand",
  "sha1_smol",
  "winit",
  "zip",

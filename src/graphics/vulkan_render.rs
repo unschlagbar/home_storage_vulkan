@@ -795,7 +795,7 @@ fn create_ui_descriptor_pool(device: &ash::Device) -> vk::DescriptorPool {
         },
         vk::DescriptorPoolSize {
             ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-            descriptor_count: MAXFRAMESINFLIGHT as u32 * 2,
+            descriptor_count: MAXFRAMESINFLIGHT as u32 * 3,
         },
     ];
 
@@ -818,8 +818,7 @@ fn create_ui_descriptor_sets(
     texture_image_views: &[vk::ImageView],
     ubo_size: u64,
 ) -> Vec<vk::DescriptorSet> {
-    let layouts: [vk::DescriptorSetLayout; MAXFRAMESINFLIGHT] =
-        [descriptor_set_layout; MAXFRAMESINFLIGHT];
+    let layouts = [descriptor_set_layout; MAXFRAMESINFLIGHT];
 
     let allocate_info = vk::DescriptorSetAllocateInfo {
         descriptor_pool,

@@ -1,6 +1,7 @@
 use std::env;
 use std::{cell::RefCell, fs, path::PathBuf, process::Command, rc::Rc};
 
+use iron_oxide::ui::AbsoluteLayout;
 use iron_oxide::{
     graphics::formats::Color,
     ui::{
@@ -67,6 +68,7 @@ impl Explorer {
                 },
                 3,
             )
+            .unwrap()
         };
         Self {
             content_window,
@@ -80,46 +82,100 @@ impl Explorer {
 
     pub fn display_path(&mut self) {
         let mut ui = self.ui.borrow_mut();
-        let content = ui.get_element(self.content_window).unwrap();
-        content.clear_childs();
 
-        let entries = fs::read_dir(&self.path).unwrap();
-        for entry in entries {
-            let entry = entry.unwrap();
-            let name = entry.file_name().into_string().unwrap();
-            if name.starts_with('.')
-                || entry
-                    .path()
-                    .extension()
-                    .unwrap_or_default()
-                    .to_str()
-                    .unwrap_or_default()
-                    == "ini"
-            {
-                continue;
-            }
-            let child = Button {
-                color: Color::ZERO,
-                height: UiUnit::Px(30.0),
-                width: UiUnit::Relative(1.0),
-                padding: OutArea::horizontal(UiUnit::Px(2.0)),
-                corner: [UiUnit::Px(5.0); 4],
-                callback: ErasedFnPointer::from_free(on_click),
-                message: if entry.path().is_dir() {
-                    FOLDER_CLICK
-                } else {
-                    FILE_CLICK
-                },
-                childs: vec![
-                    Text {
-                        text: name,
-                        ..Default::default()
+        match fs::read_dir(&self.path) {
+            Ok(entries) => {
+                let content = ui.get_element(self.content_window).unwrap();
+                content.clear_childs();
+
+                let mut is_empty = true;
+                for entry in entries {
+                    is_empty = false;
+
+                    let entry = entry.unwrap();
+                    let name = entry.file_name().into_string().unwrap();
+
+                    if name.starts_with('.')
+                        || entry
+                            .path()
+                            .extension()
+                            .unwrap_or_default()
+                            .to_str()
+                            .unwrap_or_default()
+                            == "ini"
+                    {
+                        continue;
                     }
-                    .wrap(&ui),
-                ],
-                ..Default::default()
-            };
-            ui.add_child_to(child, self.content_window);
+                    let child = Button {
+                        color: Color::ZERO,
+                        height: UiUnit::Px(30.0),
+                        width: UiUnit::Relative(1.0),
+                        padding: OutArea::horizontal(UiUnit::Px(2.0)),
+                        corner: [UiUnit::Px(5.0); 4],
+                        callback: ErasedFnPointer::from_free(on_click),
+                        message: if entry.path().is_dir() {
+                            FOLDER_CLICK
+                        } else {
+                            FILE_CLICK
+                        },
+                        childs: vec![
+                            Text {
+                                text: name,
+                                ..Default::default()
+                            }
+                            .wrap(&ui),
+                        ],
+                        ..Default::default()
+                    };
+                    ui.add_child_to(child, self.content_window);
+                }
+
+                if is_empty {
+                    let child = Container {
+                        color: Color::GREY,
+                        height: UiUnit::Px(30.0),
+                        width: UiUnit::Relative(1.0),
+                        padding: OutArea::horizontal(UiUnit::Px(2.0)),
+                        childs: vec![
+                            Text {
+                                text: "This Folder is Empty".to_string(),
+                                color: Color::RED,
+                                ..Default::default()
+                            }
+                            .wrap(&ui),
+                        ],
+                        ..Default::default()
+                    };
+                    ui.add_child_to(child, self.content_window);
+                }
+            }
+            Err(error) => {
+                if let Some(path) = self.path.parent() {
+                    self.path = path.into();
+                }
+
+                let e_message = AbsoluteLayout {
+                    x: UiUnit::Px(ui.cursor_pos.x),
+                    y: UiUnit::Px(ui.cursor_pos.y),
+                    border: [1.0; 4],
+                    width: UiUnit::Auto,
+                    height: UiUnit::Auto,
+                    padding: OutArea::new(3.0),
+                    corner: [UiUnit::Px(4.0); 4],
+                    childs: vec![
+                        Text {
+                            text: error.to_string(),
+                            color: Color::RED,
+                            ..Default::default()
+                        }
+                        .wrap(&ui),
+                    ],
+                    ..Default::default()
+                };
+                println!("{error}");
+
+                ui.add_element(e_message);
+            }
         }
     }
 
@@ -149,16 +205,17 @@ impl Explorer {
                         self.path.join(text)
                     };
 
-                    if cfg!(target_os = "windows") {
+                    let _ = if cfg!(target_os = "windows") {
                         Command::new("cmd")
-                            .args(&["/C", "start", "", path.to_str().unwrap()])
+                            .args(["/C", "start", "", path.to_str().unwrap()])
                             .spawn()
                     } else if cfg!(target_os = "linux") {
                         Command::new("xdg-open").arg(path).spawn()
                     } else {
                         Command::new("open").arg(path).spawn()
                     }
-                    .expect("Datei konnte nicht geöffnet werden");
+                    .expect("Datei konnte nicht geöffnet werden")
+                    .wait();
                 }
                 _ => unreachable!(),
             }

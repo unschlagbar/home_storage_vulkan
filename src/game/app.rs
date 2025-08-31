@@ -250,6 +250,7 @@ impl ApplicationHandler for App {
             let mut ui = self.ui.borrow_mut();
             ui.init_graphics(
                 &renderer.base,
+                renderer.single_time_command_pool,
                 renderer.window_size,
                 renderer.render_pass,
                 renderer.ui_descriptor_set_layout,

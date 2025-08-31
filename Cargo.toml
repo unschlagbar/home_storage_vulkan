@@ -2,7 +2,7 @@
 name = "home_storage_vulkan"
 version = "0.1.0"
 edition = "2024"
-#build = "shaderc.rs"
+build = "shaderc.rs"
 
 [lib]
 name = "main"
