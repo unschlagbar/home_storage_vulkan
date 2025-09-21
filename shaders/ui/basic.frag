@@ -5,15 +5,14 @@ layout(binding = 1) uniform sampler2D texSampler[2];
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in flat vec4 inColor;
 layout(location = 2) in flat vec4 fragBorderColor;
-layout(location = 3) in flat float fragWidth;  // Instanz-Daten
-layout(location = 4) in flat float fragHeight; // Instanz-Daten
-layout(location = 5) in flat float border;     // Instanz-Daten
-layout(location = 6) in flat float corner;     // Instanz-Daten
+layout(location = 3) in flat float fragWidth;
+layout(location = 4) in flat float fragHeight;
+layout(location = 5) in flat float border;
+layout(location = 6) in flat float corner;
 
 layout(location = 0) out vec4 outColor;
 
 void main() {
-
     vec3 color = inColor.rgb;
 
     vec2 uv = fragTexCoord * vec2(fragWidth, fragHeight);

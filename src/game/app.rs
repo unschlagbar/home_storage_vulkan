@@ -100,6 +100,24 @@ impl ApplicationHandler for App {
 
                 self.cursor_pos = position;
             }
+            WindowEvent::MouseWheel {
+                device_id: _,
+                delta,
+                phase: _,
+            } => {
+                let in_ui = self.ui
+                    .borrow_mut()
+                    .update_cursor(self.cursor_pos.into(), UiEvent::Scroll(delta));
+
+                if in_ui.is_new() {
+                    self.dirty = true;
+                    self.window().request_redraw();
+                } else if in_ui.is_old() {
+                } else if self.dirty {
+                    self.window().request_redraw();
+                    self.dirty = false;
+                }
+            }
             WindowEvent::MouseInput {
                 device_id: _,
                 state,
@@ -237,13 +255,19 @@ impl ApplicationHandler for App {
 
         let mut renderer = self.renderer.borrow_mut();
 
-        let shaders = (
+        let base_shaders = (
             include_bytes!("../../spv/basic.vert.spv").as_ref(),
             include_bytes!("../../spv/basic.frag.spv").as_ref(),
         );
+
         let font_shaders = (
             include_bytes!("../../spv/bitmap.vert.spv").as_ref(),
             include_bytes!("../../spv/bitmap.frag.spv").as_ref(),
+        );
+
+        let atlas_shaders = (
+            include_bytes!("../../spv/atlas_texture.vert.spv").as_ref(),
+            include_bytes!("../../spv/atlas_texture.frag.spv").as_ref(),
         );
 
         {
@@ -254,8 +278,9 @@ impl ApplicationHandler for App {
                 renderer.window_size,
                 renderer.render_pass,
                 renderer.ui_descriptor_set_layout,
-                shaders,
+                base_shaders,
                 font_shaders,
+                atlas_shaders,
             );
         }
 

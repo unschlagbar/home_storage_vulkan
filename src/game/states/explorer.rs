@@ -1,7 +1,7 @@
 use std::env;
 use std::{cell::RefCell, fs, path::PathBuf, process::Command, rc::Rc};
 
-use iron_oxide::ui::AbsoluteLayout;
+use iron_oxide::ui::{AbsoluteLayout, ScrollPanel};
 use iron_oxide::{
     graphics::formats::Color,
     ui::{
@@ -49,6 +49,7 @@ impl Explorer {
                     color: Color::rgb(20, 20, 20),
                     width: UiUnit::Px(40.0),
                     height: UiUnit::Px(40.0),
+                    margin: OutArea::new(3.0),
                     callback: ErasedFnPointer::from_free(on_click),
                     message: GO_BACK,
                     ..Default::default()
@@ -60,13 +61,19 @@ impl Explorer {
                     color: Color::rgb(30, 30, 30),
                     width: UiUnit::Fill,
                     height: UiUnit::Fill,
-                    padding: OutArea::new(4.0),
                     flex_direction: FlexDirection::Vertical,
                     border: [1.0; 4],
                     border_color: Color::rgb(100, 100, 100),
                     ..Default::default()
                 },
                 3,
+            );
+            ui.add_child_to(
+                ScrollPanel {
+                    padding: OutArea::new(4.0),
+                    ..Default::default()
+                },
+                6,
             )
             .unwrap()
         };

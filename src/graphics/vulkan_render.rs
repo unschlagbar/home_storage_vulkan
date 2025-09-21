@@ -624,7 +624,7 @@ impl VulkanRender {
         let info = reader.next_frame(&mut buf).unwrap();
         let width = info.width;
         let height = info.height;
-        let image_size = height as u64 * width as u64;
+        let image_size = buf.len() as u64;
         let extent = Extent3D {
             width,
             height,
@@ -680,9 +680,9 @@ impl VulkanRender {
             compare_enable: vk::FALSE,
             compare_op: CompareOp::ALWAYS,
             min_lod: 0.0,
-            max_lod: vk::LOD_CLAMP_NONE,
+            max_lod: 0.0,
             border_color: vk::BorderColor::FLOAT_TRANSPARENT_BLACK,
-            unnormalized_coordinates: vk::FALSE,
+            unnormalized_coordinates: vk::TRUE,
             ..Default::default()
         };
 

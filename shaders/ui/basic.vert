@@ -25,6 +25,7 @@ layout(location = 6) out float fragCorner;
 void main() {
     vec2 uv = vec2(((gl_VertexIndex << 1) & 2) >> 1, (gl_VertexIndex & 2) >> 1);
     gl_Position = ubo.view_proj * vec4(vec2(x, y) + vec2(width, height) * uv, -z_index, 1.0);
+    
     fragTexCoord = uv;
     fragColor = inColor;
     fragBorderColor = inBorderColor;
