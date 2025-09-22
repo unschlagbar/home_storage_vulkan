@@ -105,7 +105,8 @@ impl ApplicationHandler for App {
                 delta,
                 phase: _,
             } => {
-                let in_ui = self.ui
+                let in_ui = self
+                    .ui
                     .borrow_mut()
                     .update_cursor(self.cursor_pos.into(), UiEvent::Scroll(delta));
 
