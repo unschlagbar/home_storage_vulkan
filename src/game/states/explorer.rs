@@ -231,7 +231,7 @@ impl Explorer {
 }
 
 fn on_click(context: CallContext) {
-    let button: &mut Button = unsafe { context.element.downcast_mut() };
+    let button: &mut Button = context.element.downcast_mut();
     match button.state {
         ButtonState::Normal => {
             button.color = Color::ZERO;
