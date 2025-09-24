@@ -64,13 +64,14 @@ impl Explorer {
                     flex_direction: FlexDirection::Vertical,
                     border: [1.0; 4],
                     border_color: Color::rgb(100, 100, 100),
+                    padding: OutArea::new(2.0),
                     ..Default::default()
                 },
                 3,
             );
             ui.add_child_to(
                 ScrollPanel {
-                    padding: OutArea::new(4.0),
+                    padding: OutArea::new(2.0),
                     ..Default::default()
                 },
                 6,
