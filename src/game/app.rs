@@ -14,7 +14,7 @@ use winit::{
     application::ApplicationHandler,
     dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, MouseButton, TouchPhase, WindowEvent},
-    event_loop::ActiveEventLoop,
+    event_loop::{ActiveEventLoop, ControlFlow},
     keyboard::{KeyCode, PhysicalKey},
     window::{Theme, Window, WindowId},
 };
@@ -28,7 +28,6 @@ pub struct App {
     pub window: MaybeUninit<Window>,
     pub renderer: Rc<RefCell<VulkanRender>>,
     pub ui: Rc<RefCell<UiState>>,
-    #[allow(unused)]
     pub explorer: Explorer,
     pub cursor_pos: PhysicalPosition<f64>,
     pub time: Instant,
@@ -92,7 +91,6 @@ impl ApplicationHandler for App {
                 if in_ui.is_new() {
                     self.dirty = true;
                     self.window().request_redraw();
-                } else if in_ui.is_old() {
                 } else if self.dirty {
                     self.window().request_redraw();
                     self.dirty = false;
@@ -205,9 +203,25 @@ impl ApplicationHandler for App {
             _ => (),
         }
 
-        let ui_event = self.ui.borrow_mut().event.take();
+        let (needs_ticking, ui_event) = {
+            let mut ui = self.ui.borrow_mut();
+            (ui.needs_ticking(), ui.event.take())
+        };
+
         if let Some(event) = ui_event {
             self.explorer.proceed_event(event);
+        }
+
+        if needs_ticking {
+            event_loop.set_control_flow(ControlFlow::Poll);
+
+            if self.time.elapsed().as_secs_f32() > self.target_frame_time {
+                self.time = Instant::now();
+                self.ui.borrow_mut().process_ticks();
+                self.window().request_redraw();
+            }
+        } else {
+            event_loop.set_control_flow(ControlFlow::Wait);
         }
     }
 

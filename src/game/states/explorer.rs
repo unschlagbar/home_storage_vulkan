@@ -1,12 +1,12 @@
 use std::env;
 use std::{cell::RefCell, fs, path::PathBuf, process::Command, rc::Rc};
 
-use iron_oxide::ui::{AbsoluteLayout, ScrollPanel};
+use iron_oxide::ui::{AbsoluteLayout, Align, ScrollPanel, Ticking, TypeConst};
 use iron_oxide::{
     graphics::formats::Color,
     ui::{
-        Button, ButtonState, CallContext, Container, DirtyFlags, ElementBuild, ErasedFnPointer,
-        FlexDirection, OutArea, QueuedEvent, Text, UiEvent, UiState, UiUnit,
+        Button, ButtonState, CallContext, Container, DirtyFlags, ErasedFnPointer, FlexDirection,
+        OutArea, QueuedEvent, Text, UiEvent, UiState, UiUnit,
     },
 };
 
@@ -98,8 +98,6 @@ impl Explorer {
 
                 let mut is_empty = true;
                 for entry in entries {
-                    is_empty = false;
-
                     let entry = entry.unwrap();
                     let name = entry.file_name().into_string().unwrap();
 
@@ -114,6 +112,9 @@ impl Explorer {
                     {
                         continue;
                     }
+
+                    is_empty = false;
+
                     let child = Button {
                         color: Color::ZERO,
                         height: UiUnit::Px(30.0),
@@ -140,14 +141,15 @@ impl Explorer {
 
                 if is_empty {
                     let child = Container {
-                        color: Color::GREY,
-                        height: UiUnit::Px(30.0),
+                        color: Color::ZERO,
+                        height: UiUnit::Px(50.0),
                         width: UiUnit::Relative(1.0),
                         padding: OutArea::horizontal(UiUnit::Px(2.0)),
                         childs: vec![
                             Text {
                                 text: "This Folder is Empty".to_string(),
                                 color: Color::RED,
+                                align: Align::Center,
                                 ..Default::default()
                             }
                             .wrap(&ui),
@@ -162,22 +164,26 @@ impl Explorer {
                     self.path = path.into();
                 }
 
-                let e_message = AbsoluteLayout {
-                    x: UiUnit::Px(ui.cursor_pos.x),
-                    y: UiUnit::Px(ui.cursor_pos.y),
-                    border: [1.0; 4],
-                    width: UiUnit::Auto,
-                    height: UiUnit::Auto,
-                    padding: OutArea::new(3.0),
-                    corner: [UiUnit::Px(4.0); 4],
-                    childs: vec![
-                        Text {
-                            text: error.to_string(),
-                            color: Color::RED,
-                            ..Default::default()
-                        }
-                        .wrap(&ui),
-                    ],
+                let e_message = Ticking {
+                    inner: AbsoluteLayout {
+                        x: UiUnit::Px(ui.cursor_pos.x),
+                        y: UiUnit::Px(ui.cursor_pos.y),
+                        border: [1.0; 4],
+                        width: UiUnit::Auto,
+                        height: UiUnit::Auto,
+                        padding: OutArea::new(3.0),
+                        corner: [UiUnit::Px(4.0); 4],
+                        childs: vec![
+                            Text {
+                                text: error.to_string(),
+                                color: Color::RED,
+                                ..Default::default()
+                            }
+                            .wrap(&ui),
+                        ],
+                        ..Default::default()
+                    },
+                    callback: ErasedFnPointer::from_free(tick_error),
                     ..Default::default()
                 };
                 println!("{error}");
@@ -246,4 +252,12 @@ fn on_click(context: CallContext) {
         ButtonState::Disabled => unreachable!(),
     }
     context.ui.dirty = DirtyFlags::Color;
+}
+
+fn tick_error(context: CallContext) {
+    let this: &mut Ticking<AbsoluteLayout> = context.element.downcast_mut();
+    if this.last_tick.elapsed().as_secs() > 2 {
+        context.element.remove_self(context.ui);
+        context.ui.dirty = DirtyFlags::Color;
+    }
 }

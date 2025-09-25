@@ -1,6 +1,6 @@
 use iron_oxide::{
     graphics::formats::Color,
-    ui::{Container, ElementBuild, FlexDirection, UiState, UiUnit::*},
+    ui::{Container, FlexDirection, TypeConst, UiState, UiUnit::*},
 };
 
 pub fn build_main() -> UiState {
