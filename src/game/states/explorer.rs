@@ -186,7 +186,6 @@ impl Explorer {
                     callback: ErasedFnPointer::from_free(tick_error),
                     ..Default::default()
                 };
-                println!("{error}");
 
                 ui.add_element(e_message);
             }
@@ -256,8 +255,8 @@ fn on_click(context: CallContext) {
 
 fn tick_error(context: CallContext) {
     let this: &mut Ticking<AbsoluteLayout> = context.element.downcast_mut();
-    if this.last_tick.elapsed().as_secs() > 2 {
+    if this.last_tick.elapsed().as_secs_f32() > 1.0 {
         context.element.remove_self(context.ui);
-        context.ui.dirty = DirtyFlags::Color;
+        context.ui.dirty = DirtyFlags::Resize;
     }
 }
