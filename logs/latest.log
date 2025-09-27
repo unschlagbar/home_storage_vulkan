@@ -1,0 +1,13 @@
+2025-09-26 15:58:58 [INFO] (1) Starting Pumpkin 0.1.0-dev+1.21.8 Minecraft (Protocol 772)
+2025-09-26 15:58:58 [WARN] Pumpkin is currently under heavy development!
+2025-09-26 15:58:58 [INFO] (1) Report issues on https://github.com/Pumpkin-MC/Pumpkin/issues
+2025-09-26 15:58:58 [INFO] (1) Join our Discord for community support: https://discord.com/invite/wT8XjrjKkf
+2025-09-26 15:58:58 [WARN] Failed to get level_info, using default instead: Info not found!
+2025-09-26 15:58:58 [WARN] Failed to load favicon from 'icon.png': not found; using default.
+2025-09-26 15:58:58 [INFO] (1) Loading Overworld: -2574966104927119473
+2025-09-26 15:58:58 [INFO] (1) Loading Nether: -2574966104927119473
+2025-09-26 15:58:58 [INFO] (1) Loading End: -2574966104927119473
+2025-09-26 15:58:58 [INFO] (1) Query protocol is enabled. Starting...
+2025-09-26 15:58:58 [INFO] (16) Server query running on port 25565
+2025-09-26 15:58:58 [INFO] (1) Started server; took 15ms
+2025-09-26 15:58:58 [INFO] (1) Server is now running. Connect using port: Java Edition: 0.0.0.0:25565 | Bedrock Edition: 0.0.0.0:19132

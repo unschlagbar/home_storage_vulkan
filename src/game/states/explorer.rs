@@ -5,8 +5,8 @@ use iron_oxide::ui::{AbsoluteLayout, Align, ScrollPanel, Ticking, TypeConst};
 use iron_oxide::{
     graphics::formats::Color,
     ui::{
-        Button, ButtonState, CallContext, Container, DirtyFlags, ErasedFnPointer, FlexDirection,
-        OutArea, QueuedEvent, Text, UiEvent, UiState, UiUnit,
+        Button, ButtonState, CallContext, Container, DirtyFlags, ErasedFnPointer, OutArea,
+        QueuedEvent, Text, UiEvent, UiState, UiUnit,
     },
 };
 
@@ -28,21 +28,20 @@ impl Explorer {
             ui.add_child_to(
                 Container {
                     color: Color::ZERO,
-                    width: UiUnit::Fill,
+                    width: UiUnit::Relative(1.0),
                     height: UiUnit::Relative(1.0),
-                    flex_direction: FlexDirection::Vertical,
                     ..Default::default()
                 },
-                2,
+                1,
             );
             ui.add_child_to(
                 Container {
                     color: Color::rgb(20, 20, 20),
-                    width: UiUnit::Fill,
+                    width: UiUnit::Relative(1.0),
                     height: UiUnit::Px(40.0),
                     ..Default::default()
                 },
-                3,
+                2,
             );
             ui.add_child_to(
                 Button {
@@ -54,27 +53,26 @@ impl Explorer {
                     message: GO_BACK,
                     ..Default::default()
                 },
-                4,
+                3,
             );
             ui.add_child_to(
                 Container {
                     color: Color::rgb(30, 30, 30),
                     width: UiUnit::Fill,
                     height: UiUnit::Fill,
-                    flex_direction: FlexDirection::Vertical,
                     border: [1.0; 4],
                     border_color: Color::rgb(100, 100, 100),
                     padding: OutArea::new(2.0),
                     ..Default::default()
                 },
-                3,
+                2,
             );
             ui.add_child_to(
                 ScrollPanel {
                     padding: OutArea::new(2.0),
                     ..Default::default()
                 },
-                6,
+                5,
             )
             .unwrap()
         };

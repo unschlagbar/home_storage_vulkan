@@ -3,35 +3,31 @@
 use super::states::build_main;
 use crate::{game::states::explorer::Explorer, graphics::VulkanRender};
 use iron_oxide::ui::{DirtyFlags, UiEvent, UiState};
-use log::info;
 use std::{
     cell::RefCell,
-    mem::{MaybeUninit, forget},
     rc::Rc,
-    time::Instant,
+    thread::sleep,
+    time::{Duration, Instant},
 };
 use winit::{
-    application::ApplicationHandler,
-    dpi::{PhysicalPosition, PhysicalSize},
-    event::{ElementState, MouseButton, TouchPhase, WindowEvent},
-    event_loop::{ActiveEventLoop, ControlFlow},
-    keyboard::{KeyCode, PhysicalKey},
-    window::{Theme, Window, WindowId},
+    application::ApplicationHandler, dpi::{PhysicalPosition, PhysicalSize}, event::{ElementState, MouseButton, TouchPhase, WindowEvent}, event_loop::{ActiveEventLoop, ControlFlow}, keyboard::{KeyCode, PhysicalKey}, platform::windows::{CornerPreference, WindowAttributesExtWindows}, window::{Theme, Window, WindowId}
 };
 
+const APP_NAME: &str = "Home Server";
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
 pub const FPS_LIMIT: bool = false;
 
 pub struct App {
-    pub init: bool,
-    pub window: MaybeUninit<Window>,
-    pub renderer: Rc<RefCell<VulkanRender>>,
+    pub window: Option<Window>,
+    pub renderer: Option<Rc<RefCell<VulkanRender>>>,
     pub ui: Rc<RefCell<UiState>>,
     pub explorer: Explorer,
-    pub cursor_pos: PhysicalPosition<f64>,
     pub time: Instant,
+
+    pub cursor_pos: PhysicalPosition<f64>,
     pub last_cursor_location: PhysicalPosition<f64>,
+
     pub touch_id: u64,
     pub mouse_pressed: bool,
     pub dirty: bool,
@@ -41,18 +37,16 @@ pub struct App {
 impl App {
     #[allow(unused)]
     pub fn run() -> Self {
-        #[allow(invalid_value)]
-        #[allow(clippy::uninit_assumed_init)]
-        let renderer = Rc::new(RefCell::new(unsafe { MaybeUninit::uninit().assume_init() }));
-        let mut state = build_main();
-        let ui = Rc::new(RefCell::new(state));
+        let renderer = None;
+
+        let ui = Rc::new(RefCell::new(build_main()));
         let mut explorer = Explorer::new(ui.clone());
+
         explorer.display_path();
 
         Self {
-            window: MaybeUninit::uninit(),
+            window: None,
             renderer,
-            init: false,
             cursor_pos: PhysicalPosition::default(),
             time: Instant::now(),
             ui,
@@ -65,34 +59,57 @@ impl App {
         }
     }
 
-    pub fn window(&self) -> &Window {
-        unsafe { self.window.assume_init_ref() }
+    fn get_framerate(&mut self, window: &Window) {
+        if let Some(monitor) = window.current_monitor() {
+            if let Some(refresh_rate) = monitor.refresh_rate_millihertz() {
+                self.target_frame_time = 1000.0 / refresh_rate as f32;
+                println!("target pfs: {}", refresh_rate / 1000);
+            } else {
+                println!("Refresh rate not available");
+            }
+        }
+    }
+
+    fn create_window(&self, event_loop: &ActiveEventLoop) -> Window {
+        let window_attributes = Window::default_attributes()
+            .with_title(APP_NAME)
+            .with_inner_size(PhysicalSize {
+                width: WIDTH,
+                height: HEIGHT,
+            })
+            .with_visible(false)
+            .with_theme(Some(Theme::Dark))
+            .with_corner_preference(CornerPreference::RoundSmall);
+
+        event_loop.create_window(window_attributes).unwrap()
     }
 }
 
 impl ApplicationHandler for App {
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
-        if !self.init {
+        let (renderer, window) = if let Some(window) = &self.window
+            && let Some(renderer) = &self.renderer
+        {
+            (renderer, window)
+        } else {
             return;
-        }
+        };
 
         match event {
             WindowEvent::CursorMoved {
                 device_id: _,
                 position,
             } => {
-                let in_ui;
-
-                {
+                let in_ui = {
                     let mut ui = self.ui.borrow_mut();
-                    in_ui = ui.update_cursor(position.into(), UiEvent::Move);
-                }
+                    ui.update_cursor(position.into(), UiEvent::Move)
+                };
 
                 if in_ui.is_new() {
                     self.dirty = true;
-                    self.window().request_redraw();
-                } else if self.dirty {
-                    self.window().request_redraw();
+                    window.request_redraw();
+                } else if !in_ui.is_old() && self.dirty {
+                    window.request_redraw();
                     self.dirty = false;
                 }
 
@@ -110,10 +127,9 @@ impl ApplicationHandler for App {
 
                 if in_ui.is_new() {
                     self.dirty = true;
-                    self.window().request_redraw();
-                } else if in_ui.is_old() {
-                } else if self.dirty {
-                    self.window().request_redraw();
+                    window.request_redraw();
+                } else if !in_ui.is_old() && self.dirty {
+                    window.request_redraw();
                     self.dirty = false;
                 }
             }
@@ -132,7 +148,7 @@ impl ApplicationHandler for App {
                         },
                     );
 
-                    self.window().request_redraw();
+                    window.request_redraw();
                 }
                 _ => (),
             },
@@ -164,7 +180,8 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::RedrawRequested => {
-                self.renderer.borrow_mut().draw_frame();
+                renderer.borrow_mut().draw_frame();
+                println!("draw");
             }
             WindowEvent::KeyboardInput {
                 device_id: _,
@@ -175,11 +192,9 @@ impl ApplicationHandler for App {
                     match key_code {
                         KeyCode::F1 => {
                             if event.state.is_pressed() {
-                                {
-                                    let mut value = self.ui.borrow_mut();
-                                    value.visible = !value.visible;
-                                    value.dirty = DirtyFlags::Size;
-                                }
+                                let mut ui = self.ui.borrow_mut();
+                                ui.visible = !ui.visible;
+                                window.request_redraw();
                             }
                         }
                         _ => (),
@@ -187,11 +202,8 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::Resized(new_size) => {
-                if !self.init {
-                    return;
-                }
-                let size = self.window().inner_size();
-                let mut renderer = self.renderer.borrow_mut();
+                let size = window.inner_size();
+                let mut renderer = renderer.borrow_mut();
                 if new_size != size || new_size == renderer.window_size {
                     return;
                 }
@@ -203,72 +215,60 @@ impl ApplicationHandler for App {
             _ => (),
         }
 
-        let (needs_ticking, ui_event) = {
+        let ui_event = {
             let mut ui = self.ui.borrow_mut();
-            (ui.needs_ticking(), ui.event.take())
+            ui.event.take()
         };
 
         if let Some(event) = ui_event {
             self.explorer.proceed_event(event);
         }
+    }
 
-        if needs_ticking {
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if let Some(window) = &self.window
+            && self.ui.borrow().needs_ticking()
+        {
             event_loop.set_control_flow(ControlFlow::Poll);
 
             if self.time.elapsed().as_secs_f32() > self.target_frame_time {
                 self.time = Instant::now();
                 self.ui.borrow_mut().process_ticks();
-                self.window().request_redraw();
+                if !matches!(self.ui.borrow().dirty, DirtyFlags::None) {
+                    window.request_redraw();
+                }
+                sleep(Duration::from_secs_f32(self.target_frame_time * 0.9));
             }
         } else {
             event_loop.set_control_flow(ControlFlow::Wait);
         }
     }
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {}
-
     fn suspended(&mut self, _: &ActiveEventLoop) {
         println!("suspended");
-        if !self.init {
-            return;
+        if let Some(renderer) = &self.renderer {
+            renderer.borrow_mut().destroy();
+            self.renderer = None;
         }
-        self.init = false;
-        let mut renderer = self.renderer.borrow_mut();
-        renderer.destroy();
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         println!("resumed");
-        if self.init {
-            return;
+
+        let window = self.create_window(event_loop);
+        self.get_framerate(&window);
+
+        let mut renderer = if let Some(renderer) = &self.renderer {
+            renderer.replace(VulkanRender::create(&window, self.ui.clone()));
+            renderer
         } else {
-            self.init = true;
+            self.renderer = Some(Rc::new(RefCell::new(VulkanRender::create(
+                &window,
+                self.ui.clone(),
+            ))));
+            self.renderer.as_ref().unwrap()
         }
-
-        let window_attributes = Window::default_attributes()
-            .with_title("Vulkan Homeserver")
-            .with_inner_size(PhysicalSize {
-                width: WIDTH,
-                height: HEIGHT,
-            })
-            .with_visible(false)
-            .with_theme(Some(Theme::Dark));
-
-        let window = event_loop.create_window(window_attributes).unwrap();
-        if let Some(monitor) = window.current_monitor() {
-            if let Some(refresh_rate) = monitor.refresh_rate_millihertz() {
-                self.target_frame_time = 1000.0 / refresh_rate as f32;
-                println!("target pfs: {}", refresh_rate / 1000);
-            } else {
-                println!("Refresh rate not available");
-            }
-        }
-        forget(
-            self.renderer
-                .replace(VulkanRender::create(&window, self.ui.clone())),
-        );
-
-        let mut renderer = self.renderer.borrow_mut();
+        .borrow_mut();
 
         let base_shaders = (
             include_bytes!("../../spv/basic.vert.spv").as_ref(),
@@ -302,16 +302,16 @@ impl ApplicationHandler for App {
         renderer.draw_frame();
         window.set_visible(true);
 
-        self.window.write(window);
+        self.window = Some(window);
         println!("window time: {:?}", self.time.elapsed());
         self.time = Instant::now();
     }
 
-    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        info!("exiting");
-        if !self.init {
-            return;
+    fn exiting(&mut self, _: &ActiveEventLoop) {
+        println!("exiting");
+
+        if let Some(renderer) = &self.renderer {
+            renderer.borrow_mut().destroy();
         }
-        self.init = false;
     }
 }

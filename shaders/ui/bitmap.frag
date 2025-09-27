@@ -19,5 +19,8 @@ void main() {
     vec2 uv = vec2(mix(uv_x, uv_x + uv_x_size, fragUv.x), mix(uv_y, uv_y + uv_y_size, fragUv.y));
 
     float texture = texture(texSampler[0], uv).r;
+    if (texture == 0.0) {
+        discard;
+    }
     outColor = vec4(fragColor.rgb * texture, texture);
 }

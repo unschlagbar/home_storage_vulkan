@@ -567,7 +567,9 @@ impl VulkanRender {
         base: &VkBase,
         cmd_buf: vk::CommandBuffer,
     ) -> (graphics::Image, Buffer) {
-        let decoder = png::Decoder::new(std::io::Cursor::new(&include_bytes!("../../textures/texture.png")[..]));
+        let decoder = png::Decoder::new(std::io::Cursor::new(
+            &include_bytes!("../../textures/texture.png")[..],
+        ));
 
         let mut reader = decoder.read_info().unwrap();
         let mut buf = vec![0; reader.output_buffer_size().unwrap()];
@@ -617,7 +619,9 @@ impl VulkanRender {
     }
 
     fn create_font_atlas(base: &VkBase, cmd_buf: vk::CommandBuffer) -> (graphics::Image, Buffer) {
-        let decoder = png::Decoder::new(std::io::Cursor::new(&include_bytes!("../../font/default8.png")[..]));
+        let decoder = png::Decoder::new(std::io::Cursor::new(
+            &include_bytes!("../../font/default8.png")[..],
+        ));
 
         let mut reader = decoder.read_info().unwrap();
         let mut buf = vec![0; reader.output_buffer_size().unwrap()];

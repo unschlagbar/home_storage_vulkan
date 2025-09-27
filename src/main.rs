@@ -9,8 +9,7 @@ mod graphics;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
-    let mut application = App::run();
+    let mut app = App::run();
 
-    event_loop.run_app(&mut application).unwrap();
-    application.renderer.borrow_mut().destroy();
+    event_loop.run_app(&mut app).unwrap();
 }
