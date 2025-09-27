@@ -1,7 +1,6 @@
 #![allow(clippy::collapsible_match)]
 #![allow(clippy::single_match)]
-use super::states::build_main;
-use crate::{game::states::explorer::Explorer, graphics::VulkanRender};
+use crate::{explorer::Explorer, vulkan_render::VulkanRender};
 use iron_oxide::{
     primitives::Vec2,
     ui::{DirtyFlags, UiEvent, UiState},
@@ -48,7 +47,7 @@ impl App {
     pub fn run() -> Self {
         let renderer = None;
 
-        let ui = Rc::new(RefCell::new(build_main()));
+        let ui = Rc::new(RefCell::new(UiState::create(true)));
         let mut explorer = Explorer::new(ui.clone());
 
         explorer.display_path();
@@ -256,18 +255,18 @@ impl ApplicationHandler for App {
         .borrow_mut();
 
         let base_shaders = (
-            include_bytes!("../../spv/basic.vert.spv").as_ref(),
-            include_bytes!("../../spv/basic.frag.spv").as_ref(),
+            include_bytes!("../spv/basic.vert.spv").as_ref(),
+            include_bytes!("../spv/basic.frag.spv").as_ref(),
         );
 
         let font_shaders = (
-            include_bytes!("../../spv/bitmap.vert.spv").as_ref(),
-            include_bytes!("../../spv/bitmap.frag.spv").as_ref(),
+            include_bytes!("../spv/bitmap.vert.spv").as_ref(),
+            include_bytes!("../spv/bitmap.frag.spv").as_ref(),
         );
 
         let atlas_shaders = (
-            include_bytes!("../../spv/atlas_texture.vert.spv").as_ref(),
-            include_bytes!("../../spv/atlas_texture.frag.spv").as_ref(),
+            include_bytes!("../spv/atlas_texture.vert.spv").as_ref(),
+            include_bytes!("../spv/atlas_texture.frag.spv").as_ref(),
         );
 
         {

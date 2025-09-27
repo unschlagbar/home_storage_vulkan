@@ -1,10 +1,12 @@
 //#![windows_subsystem = "windows"]
 
-use game::app::App;
+mod app;
+mod explorer;
+mod vulkan_render;
+
 use winit::event_loop::EventLoop;
 
-mod game;
-mod graphics;
+use crate::app::App;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();

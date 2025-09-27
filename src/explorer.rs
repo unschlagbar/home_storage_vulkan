@@ -25,14 +25,13 @@ impl Explorer {
     pub fn new(ui: Rc<RefCell<UiState>>) -> Self {
         let content_window = {
             let mut ui = ui.borrow_mut();
-            ui.add_child_to(
+            ui.add_element(
                 Container {
                     color: Color::ZERO,
                     width: UiUnit::Relative(1.0),
                     height: UiUnit::Relative(1.0),
                     ..Default::default()
                 },
-                1,
             );
             ui.add_child_to(
                 Container {
@@ -41,7 +40,7 @@ impl Explorer {
                     height: UiUnit::Px(40.0),
                     ..Default::default()
                 },
-                2,
+                1,
             );
             ui.add_child_to(
                 Button {
@@ -53,7 +52,7 @@ impl Explorer {
                     message: GO_BACK,
                     ..Default::default()
                 },
-                3,
+                2,
             );
             ui.add_child_to(
                 Container {
@@ -65,14 +64,14 @@ impl Explorer {
                     padding: OutArea::new(2.0),
                     ..Default::default()
                 },
-                2,
+                1,
             );
             ui.add_child_to(
                 ScrollPanel {
                     padding: OutArea::new(2.0),
                     ..Default::default()
                 },
-                5,
+                4,
             )
             .unwrap()
         };

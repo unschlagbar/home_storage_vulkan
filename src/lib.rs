@@ -1,6 +1,8 @@
-mod game;
-pub mod graphics;
-#[cfg(target_os = "android")]
+#![cfg(target_os = "android")]
+
+mod app;
+mod explorer;
+mod vulkan_render;
 mod android {
     use crate::game::app::App;
     use activity::AndroidApp;

@@ -5,14 +5,13 @@ use ash::vk::{
 };
 use cgmath::{Matrix4, ortho};
 use iron_oxide::{
-    graphics::{self, Buffer, SinlgeTimeCommands, VkBase},
+    graphics::{self, Buffer, SinlgeTimeCommands, Swapchain, VkBase},
     ui::UiState,
 };
 use std::{
     cell::RefCell,
-    ffi::c_void,
     mem::size_of,
-    ptr::{self, null},
+    ptr::{copy_nonoverlapping, null, null_mut},
     rc::Rc,
     thread::sleep,
     time::{Duration, Instant},
@@ -23,34 +22,33 @@ use winit::{
     window::Window,
 };
 
-use super::UniformBufferObject;
-use super::buffer::create_uniform_buffers;
-use crate::{game::app::FPS_LIMIT, graphics::Swapchain};
+use crate::app::FPS_LIMIT;
 
-pub const MAXFRAMESINFLIGHT: usize = 1;
+// Max frames in flight
+pub const MFIF: usize = 1;
 
 pub struct VulkanRender {
-    pub base: iron_oxide::graphics::VkBase,
+    pub base: VkBase,
 
     pub window_size: PhysicalSize<u32>,
-    pub swapchain: super::Swapchain,
+    pub swapchain: Swapchain,
     pub render_pass: vk::RenderPass,
 
     pub command_pool: vk::CommandPool,
     pub single_time_command_pool: vk::CommandPool,
 
-    ui_uniform_buffers: [Buffer; MAXFRAMESINFLIGHT],
-    ui_uniform_buffers_mapped: [*mut c_void; MAXFRAMESINFLIGHT],
+    uniform_buffers: [Buffer; MFIF],
+    uniform_buffers_mapped: [*mut Matrix4<f32>; MFIF],
 
     ui_descriptor_pool: vk::DescriptorPool,
     pub ui_descriptor_sets: Vec<vk::DescriptorSet>,
     pub ui_descriptor_set_layout: vk::DescriptorSetLayout,
 
-    pub command_buffers: [vk::CommandBuffer; MAXFRAMESINFLIGHT],
+    pub command_buffers: [vk::CommandBuffer; MFIF],
 
-    image_available_semaphores: [vk::Semaphore; MAXFRAMESINFLIGHT],
+    image_available_semaphores: [vk::Semaphore; MFIF],
     render_finsih_semaphores: Vec<vk::Semaphore>,
-    in_flight_fences: [vk::Fence; MAXFRAMESINFLIGHT],
+    in_flight_fences: [vk::Fence; MFIF],
     pub current_frame: usize,
 
     texture_image: graphics::Image,
@@ -116,14 +114,14 @@ impl VulkanRender {
         let texture_sampler = Self::create_texture_sampler(&base.device);
         let ui_descriptor_pool = create_ui_descriptor_pool(&base.device);
         let ui_descriptor_set_layout = create_ui_descriptor_set_layout(&base.device);
-        let ui_descriptor_sets = create_ui_descriptor_sets(
+        let ui_descriptor_sets = create_descriptor_sets(
             &base.device,
             ui_descriptor_pool,
             ui_descriptor_set_layout,
             &ui_uniform_buffers,
             texture_sampler,
             &[font_atlas.view, texture_image.view],
-            size_of::<UniformBufferObject>() as _,
+            size_of::<Matrix4<f32>>() as _,
         );
 
         let command_buffers = Self::create_command_buffers(&base.device, command_pool);
@@ -141,8 +139,8 @@ impl VulkanRender {
             command_pool,
             single_time_command_pool,
 
-            ui_uniform_buffers,
-            ui_uniform_buffers_mapped,
+            uniform_buffers: ui_uniform_buffers,
+            uniform_buffers_mapped: ui_uniform_buffers_mapped,
 
             ui_descriptor_pool,
             ui_descriptor_sets,
@@ -329,16 +327,16 @@ impl VulkanRender {
     fn create_command_buffers(
         device: &ash::Device,
         command_pool: vk::CommandPool,
-    ) -> [vk::CommandBuffer; MAXFRAMESINFLIGHT] {
+    ) -> [vk::CommandBuffer; MFIF] {
         let aloc_info = vk::CommandBufferAllocateInfo {
             command_pool,
             level: vk::CommandBufferLevel::PRIMARY,
-            command_buffer_count: MAXFRAMESINFLIGHT as _,
+            command_buffer_count: MFIF as _,
             ..Default::default()
         };
 
         let vec = unsafe { device.allocate_command_buffers(&aloc_info).unwrap() };
-        let mut buffers = [vk::CommandBuffer::null(); MAXFRAMESINFLIGHT];
+        let mut buffers = [vk::CommandBuffer::null(); MFIF];
 
         buffers.copy_from_slice(&vec);
 
@@ -427,7 +425,7 @@ impl VulkanRender {
             return;
         }
 
-        self.current_frame = (self.current_frame + 1) % MAXFRAMESINFLIGHT
+        self.current_frame = (self.current_frame + 1) % MFIF
     }
 
     fn record_command_buffer(&mut self, index: u32, command_buffer: vk::CommandBuffer) {
@@ -512,9 +510,9 @@ impl VulkanRender {
         device: &ash::Device,
         swap_chain_images: usize,
     ) -> (
-        [vk::Semaphore; MAXFRAMESINFLIGHT],
+        [vk::Semaphore; MFIF],
         Vec<vk::Semaphore>,
-        [vk::Fence; MAXFRAMESINFLIGHT],
+        [vk::Fence; MFIF],
     ) {
         let semaphore_info = vk::SemaphoreCreateInfo::default();
         let fence_info = vk::FenceCreateInfo {
@@ -522,12 +520,12 @@ impl VulkanRender {
             ..Default::default()
         };
 
-        let mut image_available_semaphores = [vk::Semaphore::null(); MAXFRAMESINFLIGHT];
+        let mut image_available_semaphores = [vk::Semaphore::null(); MFIF];
         let mut render_finsih_semaphores = vec![vk::Semaphore::null(); swap_chain_images];
-        let mut in_flight_fences = [vk::Fence::null(); MAXFRAMESINFLIGHT];
+        let mut in_flight_fences = [vk::Fence::null(); MFIF];
 
         unsafe {
-            for i in 0..MAXFRAMESINFLIGHT {
+            for i in 0..MFIF {
                 image_available_semaphores[i] = device
                     .create_semaphore(&semaphore_info, None)
                     .unwrap_unchecked();
@@ -558,8 +556,8 @@ impl VulkanRender {
             1.0,
         );
 
-        for uniform_buffer in self.ui_uniform_buffers_mapped {
-            unsafe { ptr::copy_nonoverlapping(&ubo as _, uniform_buffer as _, 1) };
+        for uniform_buffer in self.uniform_buffers_mapped {
+            unsafe { copy_nonoverlapping(&ubo as _, uniform_buffer as _, 1) };
         }
     }
 
@@ -568,7 +566,7 @@ impl VulkanRender {
         cmd_buf: vk::CommandBuffer,
     ) -> (graphics::Image, Buffer) {
         let decoder = png::Decoder::new(std::io::Cursor::new(
-            &include_bytes!("../../textures/texture.png")[..],
+            include_bytes!("../textures/texture.png"),
         ));
 
         let mut reader = decoder.read_info().unwrap();
@@ -592,7 +590,7 @@ impl VulkanRender {
 
         let mapped_memory = staging_buffer.map_memory(&base.device, image_size, 0);
         unsafe {
-            ptr::copy_nonoverlapping(buf.as_ptr(), mapped_memory as _, image_size as usize);
+            copy_nonoverlapping(buf.as_ptr(), mapped_memory, image_size as usize);
         };
         staging_buffer.unmap_memory(&base.device);
 
@@ -620,7 +618,7 @@ impl VulkanRender {
 
     fn create_font_atlas(base: &VkBase, cmd_buf: vk::CommandBuffer) -> (graphics::Image, Buffer) {
         let decoder = png::Decoder::new(std::io::Cursor::new(
-            &include_bytes!("../../font/default8.png")[..],
+            include_bytes!("../font/default8.png"),
         ));
 
         let mut reader = decoder.read_info().unwrap();
@@ -644,7 +642,7 @@ impl VulkanRender {
 
         let mapped_memory = staging_buffer.map_memory(&base.device, image_size, 0);
         unsafe {
-            ptr::copy_nonoverlapping(buf.as_ptr(), mapped_memory as _, image_size as usize);
+            copy_nonoverlapping(buf.as_ptr(), mapped_memory, image_size as usize);
         };
         staging_buffer.unmap_memory(&base.device);
 
@@ -736,10 +734,10 @@ impl VulkanRender {
                 device.destroy_semaphore(self.render_finsih_semaphores[i], None);
             }
 
-            for i in 0..MAXFRAMESINFLIGHT {
+            for i in 0..MFIF {
                 device.destroy_semaphore(self.image_available_semaphores[i], None);
                 device.destroy_fence(self.in_flight_fences[i], None);
-                self.ui_uniform_buffers[i].destroy(device);
+                self.uniform_buffers[i].destroy(device);
             }
 
             self.ui_state.borrow().destroy(device);
@@ -795,25 +793,25 @@ fn create_ui_descriptor_pool(device: &ash::Device) -> vk::DescriptorPool {
     let pool_sizes = [
         vk::DescriptorPoolSize {
             ty: vk::DescriptorType::UNIFORM_BUFFER,
-            descriptor_count: MAXFRAMESINFLIGHT as _,
+            descriptor_count: MFIF as _,
         },
         vk::DescriptorPoolSize {
             ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-            descriptor_count: MAXFRAMESINFLIGHT as u32 * 3,
+            descriptor_count: MFIF as u32 * 3,
         },
     ];
 
     let pool_info = vk::DescriptorPoolCreateInfo {
         pool_size_count: pool_sizes.len() as _,
         p_pool_sizes: pool_sizes.as_ptr(),
-        max_sets: MAXFRAMESINFLIGHT as _,
+        max_sets: MFIF as _,
         ..Default::default()
     };
 
     unsafe { device.create_descriptor_pool(&pool_info, None).unwrap() }
 }
 
-fn create_ui_descriptor_sets(
+fn create_descriptor_sets(
     device: &ash::Device,
     descriptor_pool: vk::DescriptorPool,
     descriptor_set_layout: vk::DescriptorSetLayout,
@@ -822,18 +820,18 @@ fn create_ui_descriptor_sets(
     texture_image_views: &[vk::ImageView],
     ubo_size: u64,
 ) -> Vec<vk::DescriptorSet> {
-    let layouts = [descriptor_set_layout; MAXFRAMESINFLIGHT];
+    let layouts = [descriptor_set_layout; MFIF];
 
     let allocate_info = vk::DescriptorSetAllocateInfo {
         descriptor_pool,
-        descriptor_set_count: MAXFRAMESINFLIGHT as u32,
+        descriptor_set_count: MFIF as u32,
         p_set_layouts: layouts.as_ptr(),
         ..Default::default()
     };
 
     let descriptor_sets = unsafe { device.allocate_descriptor_sets(&allocate_info).unwrap() };
 
-    for i in 0..MAXFRAMESINFLIGHT {
+    for i in 0..MFIF {
         let buffer_info = vk::DescriptorBufferInfo {
             buffer: uniform_buffers[i].inner,
             offset: 0,
@@ -875,4 +873,28 @@ fn create_ui_descriptor_sets(
     }
 
     descriptor_sets
+}
+
+pub fn create_uniform_buffers<T>(
+    base: &VkBase,
+) -> (
+    [Buffer; MFIF],
+    [*mut T; MFIF],
+) {
+    let buffer_size = std::mem::size_of::<T>() as u64;
+
+    let mut uniform_buffers = [Buffer::null(); MFIF];
+    let mut mapped = [null_mut(); MFIF];
+
+    for i in 0..MFIF {
+        uniform_buffers[i] = Buffer::create(
+            base,
+            buffer_size,
+            vk::BufferUsageFlags::UNIFORM_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+        mapped[i] = uniform_buffers[i].map_memory(&base.device, buffer_size, 0);
+    }
+
+    (uniform_buffers, mapped)
 }
