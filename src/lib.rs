@@ -1,7 +1,5 @@
 mod game;
 pub mod graphics;
-
-#[allow(non_snake_case, unused_variables)]
 #[cfg(target_os = "android")]
 mod android {
     use crate::game::app::App;
@@ -27,9 +25,9 @@ mod android {
             .build()
             .unwrap();
 
-        let mut application = App::run();
+        let mut app = App::run();
 
         info!("between");
-        event_loop.run_app(&mut application).unwrap();
+        event_loop.run_app(&mut app).unwrap();
     }
 }

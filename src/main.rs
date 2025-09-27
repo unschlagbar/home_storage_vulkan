@@ -1,4 +1,3 @@
-#![allow(clippy::uninit_assumed_init)]
 //#![windows_subsystem = "windows"]
 
 use game::app::App;

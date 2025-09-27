@@ -75,14 +75,14 @@ impl Swapchain {
             inner: SwapchainKHR::null(),
             surface_loader,
             surface,
-            image_views: Vec::with_capacity(0),
+            image_views: Vec::new(),
             #[allow(invalid_value)]
             #[allow(clippy::uninit_assumed_init)]
             capabilities: unsafe { MaybeUninit::uninit().assume_init() },
             format,
             present_mode,
             composite_alpha,
-            framebuffers: Vec::with_capacity(0),
+            framebuffers: Vec::new(),
         }
     }
 

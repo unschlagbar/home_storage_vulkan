@@ -2,7 +2,10 @@
 #![allow(clippy::single_match)]
 use super::states::build_main;
 use crate::{game::states::explorer::Explorer, graphics::VulkanRender};
-use iron_oxide::ui::{DirtyFlags, UiEvent, UiState};
+use iron_oxide::{
+    primitives::Vec2,
+    ui::{DirtyFlags, UiEvent, UiState},
+};
 use std::{
     cell::RefCell,
     rc::Rc,
@@ -10,26 +13,32 @@ use std::{
     time::{Duration, Instant},
 };
 use winit::{
-    application::ApplicationHandler, dpi::{PhysicalPosition, PhysicalSize}, event::{ElementState, MouseButton, TouchPhase, WindowEvent}, event_loop::{ActiveEventLoop, ControlFlow}, keyboard::{KeyCode, PhysicalKey}, platform::windows::{CornerPreference, WindowAttributesExtWindows}, window::{Theme, Window, WindowId}
+    application::ApplicationHandler,
+    dpi::PhysicalSize,
+    event::{MouseButton, TouchPhase, WindowEvent},
+    event_loop::{ActiveEventLoop, ControlFlow},
+    keyboard::{KeyCode, PhysicalKey},
+    platform::windows::{CornerPreference, WindowAttributesExtWindows},
+    window::{Theme, Window, WindowId},
 };
 
 const APP_NAME: &str = "Home Server";
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
+
 pub const FPS_LIMIT: bool = false;
+const DEFAULT_FPS: f32 = 144.0;
 
 pub struct App {
     pub window: Option<Window>,
     pub renderer: Option<Rc<RefCell<VulkanRender>>>,
     pub ui: Rc<RefCell<UiState>>,
+
     pub explorer: Explorer,
     pub time: Instant,
 
-    pub cursor_pos: PhysicalPosition<f64>,
-    pub last_cursor_location: PhysicalPosition<f64>,
-
+    pub cursor_pos: Vec2,
     pub touch_id: u64,
-    pub mouse_pressed: bool,
     pub dirty: bool,
     pub target_frame_time: f32,
 }
@@ -47,15 +56,13 @@ impl App {
         Self {
             window: None,
             renderer,
-            cursor_pos: PhysicalPosition::default(),
+            cursor_pos: Vec2::default(),
             time: Instant::now(),
             ui,
             explorer,
-            last_cursor_location: PhysicalPosition::default(),
             touch_id: 0,
-            mouse_pressed: false,
             dirty: false,
-            target_frame_time: 1.0 / 144.0,
+            target_frame_time: 1.0 / DEFAULT_FPS,
         }
     }
 
@@ -100,9 +107,11 @@ impl ApplicationHandler for App {
                 device_id: _,
                 position,
             } => {
+                self.cursor_pos = position.into();
+
                 let in_ui = {
                     let mut ui = self.ui.borrow_mut();
-                    ui.update_cursor(position.into(), UiEvent::Move)
+                    ui.update_cursor(self.cursor_pos, UiEvent::Move)
                 };
 
                 if in_ui.is_new() {
@@ -112,8 +121,6 @@ impl ApplicationHandler for App {
                     window.request_redraw();
                     self.dirty = false;
                 }
-
-                self.cursor_pos = position;
             }
             WindowEvent::MouseWheel {
                 device_id: _,
@@ -123,7 +130,7 @@ impl ApplicationHandler for App {
                 let in_ui = self
                     .ui
                     .borrow_mut()
-                    .update_cursor(self.cursor_pos.into(), UiEvent::Scroll(delta));
+                    .update_cursor(self.cursor_pos, UiEvent::Scroll(delta));
 
                 if in_ui.is_new() {
                     self.dirty = true;
@@ -139,14 +146,9 @@ impl ApplicationHandler for App {
                 button,
             } => match button {
                 MouseButton::Left => {
-                    self.mouse_pressed = state == ElementState::Pressed;
-                    self.ui.borrow_mut().update_cursor(
-                        self.cursor_pos.into(),
-                        match state {
-                            ElementState::Pressed => UiEvent::Press,
-                            ElementState::Released => UiEvent::Release,
-                        },
-                    );
+                    self.ui
+                        .borrow_mut()
+                        .update_cursor(self.cursor_pos, state.into());
 
                     window.request_redraw();
                 }
@@ -156,33 +158,18 @@ impl ApplicationHandler for App {
                 let cursor_pos = touch.location.into();
                 match touch.phase {
                     TouchPhase::Started => {
-                        if touch.id != 0 || self.touch_id != touch.id {
-                            return;
+                        if self.touch_id == 0 {
+                            self.touch_id = touch.id;
                         }
-                        self.touch_id = touch.id;
-                        self.ui
-                            .borrow_mut()
-                            .update_cursor(cursor_pos, UiEvent::Press);
-                        self.last_cursor_location = touch.location;
                     }
-                    TouchPhase::Moved => {
-                        self.last_cursor_location = touch.location;
-                        self.ui
-                            .borrow_mut()
-                            .update_cursor(cursor_pos, UiEvent::Move);
-                    }
-                    TouchPhase::Ended | TouchPhase::Cancelled => {
-                        self.touch_id = 0;
-                        self.ui
-                            .borrow_mut()
-                            .update_cursor(cursor_pos, UiEvent::Release);
-                    }
+                    TouchPhase::Moved => (),
+                    TouchPhase::Ended | TouchPhase::Cancelled => self.touch_id = 0,
                 }
+                self.ui
+                    .borrow_mut()
+                    .update_cursor(cursor_pos, touch.phase.into());
             }
-            WindowEvent::RedrawRequested => {
-                renderer.borrow_mut().draw_frame();
-                println!("draw");
-            }
+            WindowEvent::RedrawRequested => renderer.borrow_mut().draw_frame(),
             WindowEvent::KeyboardInput {
                 device_id: _,
                 event,
@@ -209,9 +196,7 @@ impl ApplicationHandler for App {
                 }
                 renderer.recreate_swapchain(size);
             }
-            WindowEvent::CloseRequested => {
-                event_loop.exit();
-            }
+            WindowEvent::CloseRequested => event_loop.exit(),
             _ => (),
         }
 
@@ -246,9 +231,9 @@ impl ApplicationHandler for App {
 
     fn suspended(&mut self, _: &ActiveEventLoop) {
         println!("suspended");
+
         if let Some(renderer) = &self.renderer {
             renderer.borrow_mut().destroy();
-            self.renderer = None;
         }
     }
 

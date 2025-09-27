@@ -19,13 +19,13 @@ pub fn create_post_pipeline(
         },
     };
 
-    let vertex_shader_module = shader_modul::create_shader_modul(device, vertex_shader_buff);
-    let fragment_shader_module = shader_modul::create_shader_modul(device, fragment_shader_buff);
+    let vertex_module = shader_modul::create_shader_modul(device, vertex_shader_buff);
+    let fragment_module = shader_modul::create_shader_modul(device, fragment_shader_buff);
 
     let vertex_stage_info = vk::PipelineShaderStageCreateInfo {
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         stage: vk::ShaderStageFlags::VERTEX,
-        module: vertex_shader_module,
+        module: vertex_module,
         p_name: c"main".as_ptr(),
         ..Default::default()
     };
@@ -33,7 +33,7 @@ pub fn create_post_pipeline(
     let fragment_stage_info = vk::PipelineShaderStageCreateInfo {
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         stage: vk::ShaderStageFlags::FRAGMENT,
-        module: fragment_shader_module,
+        module: fragment_module,
         p_name: c"main".as_ptr(),
         ..Default::default()
     };
@@ -67,7 +67,7 @@ pub fn create_post_pipeline(
         max_depth: 1.0,
     };
 
-    let view_ports_state = vk::PipelineViewportStateCreateInfo {
+    let view_portstate = vk::PipelineViewportStateCreateInfo {
         viewport_count: 1,
         p_viewports: &view_port as _,
         scissor_count: 1,
@@ -139,7 +139,7 @@ pub fn create_post_pipeline(
         p_stages: shader_stage.as_ptr(),
         p_vertex_input_state: &vertex_input_info,
         p_input_assembly_state: &input_assembly,
-        p_viewport_state: &view_ports_state,
+        p_viewport_state: &view_portstate,
         p_rasterization_state: &rasterizer,
         p_multisample_state: &multisampling,
         p_color_blend_state: &color_blending,
@@ -159,8 +159,8 @@ pub fn create_post_pipeline(
     };
 
     unsafe {
-        device.destroy_shader_module(vertex_shader_module, None);
-        device.destroy_shader_module(fragment_shader_module, None);
+        device.destroy_shader_module(vertex_module, None);
+        device.destroy_shader_module(fragment_module, None);
     }
 
     (pipeline_layout, pipelines)
