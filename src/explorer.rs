@@ -16,7 +16,6 @@ const GO_BACK: u16 = 3;
 
 pub struct Explorer {
     pub content_window: u32,
-    #[allow(unused)]
     pub path: PathBuf,
     pub ui: Rc<RefCell<UiState>>,
 }
@@ -25,23 +24,27 @@ impl Explorer {
     pub fn new(ui: Rc<RefCell<UiState>>) -> Self {
         let content_window = {
             let mut ui = ui.borrow_mut();
-            ui.add_element(
-                Container {
-                    color: Color::ZERO,
-                    width: UiUnit::Relative(1.0),
-                    height: UiUnit::Relative(1.0),
-                    ..Default::default()
-                },
-            );
-            ui.add_child_to(
-                Container {
-                    color: Color::rgb(20, 20, 20),
-                    width: UiUnit::Relative(1.0),
-                    height: UiUnit::Px(40.0),
-                    ..Default::default()
-                },
-                1,
-            );
+
+            let root = ui.add_element(Container {
+                color: Color::ZERO,
+                width: UiUnit::Relative(1.0),
+                height: UiUnit::Relative(1.0),
+                ..Default::default()
+            });
+
+            let nav_bar = ui
+                .add_child_to(
+                    Container {
+                        color: Color::rgb(20, 20, 20),
+                        width: UiUnit::Relative(1.0),
+                        height: UiUnit::Px(40.0),
+                        ..Default::default()
+                    },
+                    root,
+                )
+                .unwrap();
+
+            //Back Button
             ui.add_child_to(
                 Button {
                     color: Color::rgb(20, 20, 20),
@@ -52,26 +55,30 @@ impl Explorer {
                     message: GO_BACK,
                     ..Default::default()
                 },
-                2,
+                nav_bar,
             );
-            ui.add_child_to(
-                Container {
-                    color: Color::rgb(30, 30, 30),
-                    width: UiUnit::Fill,
-                    height: UiUnit::Fill,
-                    border: [1.0; 4],
-                    border_color: Color::rgb(100, 100, 100),
-                    padding: OutArea::new(2.0),
-                    ..Default::default()
-                },
-                1,
-            );
+
+            let content = ui
+                .add_child_to(
+                    Container {
+                        color: Color::rgb(30, 30, 30),
+                        width: UiUnit::Fill,
+                        height: UiUnit::Fill,
+                        border: [1.0; 4],
+                        border_color: Color::rgb(100, 100, 100),
+                        padding: OutArea::new(2.0),
+                        ..Default::default()
+                    },
+                    root,
+                )
+                .unwrap();
+
             ui.add_child_to(
                 ScrollPanel {
                     padding: OutArea::new(2.0),
                     ..Default::default()
                 },
-                4,
+                content,
             )
             .unwrap()
         };
@@ -163,6 +170,7 @@ impl Explorer {
 
                 let e_message = Ticking {
                     inner: AbsoluteLayout {
+                        color: Color::rgb(255, 255, 255),
                         x: UiUnit::Px(ui.cursor_pos.x),
                         y: UiUnit::Px(ui.cursor_pos.y),
                         border: [1.0; 4],
@@ -190,7 +198,7 @@ impl Explorer {
     }
 
     pub fn proceed_event(&mut self, event: QueuedEvent) {
-        if matches!(event.event, UiEvent::Press) {
+        if event.event == UiEvent::Press {
             match event.message {
                 FOLDER_CLICK => {
                     {

@@ -345,9 +345,11 @@ impl VulkanRender {
 
     pub fn draw_frame(&mut self) {
         if self.window_size.width == 0 || self.window_size.height == 0 {
-            sleep(Duration::from_millis(100));
+            sleep(Duration::from_millis(200));
             return;
         }
+
+        println!("draw");
 
         let in_flight_fence = self.in_flight_fences[self.current_frame];
         let available_semaphore = self.image_available_semaphores[self.current_frame];
@@ -509,11 +511,7 @@ impl VulkanRender {
     fn create_sync_object(
         device: &ash::Device,
         swap_chain_images: usize,
-    ) -> (
-        [vk::Semaphore; MFIF],
-        Vec<vk::Semaphore>,
-        [vk::Fence; MFIF],
-    ) {
+    ) -> ([vk::Semaphore; MFIF], Vec<vk::Semaphore>, [vk::Fence; MFIF]) {
         let semaphore_info = vk::SemaphoreCreateInfo::default();
         let fence_info = vk::FenceCreateInfo {
             flags: vk::FenceCreateFlags::SIGNALED,
@@ -565,9 +563,9 @@ impl VulkanRender {
         base: &VkBase,
         cmd_buf: vk::CommandBuffer,
     ) -> (graphics::Image, Buffer) {
-        let decoder = png::Decoder::new(std::io::Cursor::new(
-            include_bytes!("../textures/texture.png"),
-        ));
+        let decoder = png::Decoder::new(std::io::Cursor::new(include_bytes!(
+            "../textures/texture.png"
+        )));
 
         let mut reader = decoder.read_info().unwrap();
         let mut buf = vec![0; reader.output_buffer_size().unwrap()];
@@ -617,9 +615,8 @@ impl VulkanRender {
     }
 
     fn create_font_atlas(base: &VkBase, cmd_buf: vk::CommandBuffer) -> (graphics::Image, Buffer) {
-        let decoder = png::Decoder::new(std::io::Cursor::new(
-            include_bytes!("../font/default8.png"),
-        ));
+        let decoder =
+            png::Decoder::new(std::io::Cursor::new(include_bytes!("../font/default8.png")));
 
         let mut reader = decoder.read_info().unwrap();
         let mut buf = vec![0; reader.output_buffer_size().unwrap()];
@@ -875,12 +872,7 @@ fn create_descriptor_sets(
     descriptor_sets
 }
 
-pub fn create_uniform_buffers<T>(
-    base: &VkBase,
-) -> (
-    [Buffer; MFIF],
-    [*mut T; MFIF],
-) {
+pub fn create_uniform_buffers<T>(base: &VkBase) -> ([Buffer; MFIF], [*mut T; MFIF]) {
     let buffer_size = std::mem::size_of::<T>() as u64;
 
     let mut uniform_buffers = [Buffer::null(); MFIF];

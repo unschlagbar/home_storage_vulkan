@@ -17,9 +17,11 @@ use winit::{
     event::{MouseButton, TouchPhase, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow},
     keyboard::{KeyCode, PhysicalKey},
-    platform::windows::{CornerPreference, WindowAttributesExtWindows},
     window::{Theme, Window, WindowId},
 };
+
+#[cfg(target_os = "windows")]
+use winit::platform::windows::{CornerPreference, WindowAttributesExtWindows};
 
 const APP_NAME: &str = "Home Server";
 const WIDTH: u32 = 1280;
@@ -84,9 +86,11 @@ impl App {
                 height: HEIGHT,
             })
             .with_visible(false)
-            .with_theme(Some(Theme::Dark))
-            .with_corner_preference(CornerPreference::RoundSmall);
+            .with_theme(Some(Theme::Dark));
 
+        #[cfg(target_os = "windows")]
+        let window_attributes =
+            window_attributes.with_corner_preference(CornerPreference::RoundSmall);
         event_loop.create_window(window_attributes).unwrap()
     }
 }
@@ -108,15 +112,15 @@ impl ApplicationHandler for App {
             } => {
                 self.cursor_pos = position.into();
 
-                let in_ui = {
+                let result = {
                     let mut ui = self.ui.borrow_mut();
                     ui.update_cursor(self.cursor_pos, UiEvent::Move)
                 };
 
-                if in_ui.is_new() {
+                if result.is_new() {
                     self.dirty = true;
                     window.request_redraw();
-                } else if !in_ui.is_old() && self.dirty {
+                } else if self.dirty && result.is_none() {
                     window.request_redraw();
                     self.dirty = false;
                 }
@@ -126,15 +130,15 @@ impl ApplicationHandler for App {
                 delta,
                 phase: _,
             } => {
-                let in_ui = self
+                let result = self
                     .ui
                     .borrow_mut()
                     .update_cursor(self.cursor_pos, UiEvent::Scroll(delta));
 
-                if in_ui.is_new() {
+                if result.is_new() {
                     self.dirty = true;
                     window.request_redraw();
-                } else if !in_ui.is_old() && self.dirty {
+                } else if self.dirty && result.is_none() {
                     window.request_redraw();
                     self.dirty = false;
                 }
@@ -145,11 +149,14 @@ impl ApplicationHandler for App {
                 button,
             } => match button {
                 MouseButton::Left => {
-                    self.ui
+                    let result = self
+                        .ui
                         .borrow_mut()
                         .update_cursor(self.cursor_pos, state.into());
 
-                    window.request_redraw();
+                    if result.is_new() {
+                        window.request_redraw();
+                    }
                 }
                 _ => (),
             },
@@ -183,17 +190,28 @@ impl ApplicationHandler for App {
                                 window.request_redraw();
                             }
                         }
+                        KeyCode::KeyT => {
+                            window.set_maximized(true);
+                        }
+                        KeyCode::KeyZ => {
+                            window.set_maximized(false);
+                        }
+                        KeyCode::KeyU => {
+                            window.set_minimized(true);
+                        }
                         _ => (),
                     }
                 }
             }
             WindowEvent::Resized(new_size) => {
-                let size = window.inner_size();
+                print!("re");
                 let mut renderer = renderer.borrow_mut();
-                if new_size != size || new_size == renderer.window_size {
+                if new_size == renderer.window_size {
                     return;
                 }
-                renderer.recreate_swapchain(size);
+                println!("sized");
+                renderer.recreate_swapchain(new_size);
+                window.request_redraw();
             }
             WindowEvent::CloseRequested => event_loop.exit(),
             _ => (),
