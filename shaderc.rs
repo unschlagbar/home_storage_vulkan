@@ -8,6 +8,9 @@ const SPV_DIR: &str = "spv";
 
 fn main() -> Result<(), Error> {
     println!("cargo:rerun-if-changed={SHADER_DIR}");
+    if cfg!(not(target_os = "windows")) {
+        return Ok(());
+    }
     let shader_compiler = match env::var("VULKAN_SDK") {
         Ok(vulkan_sdk) => vulkan_sdk + "/Bin/glslc.exe",
         Err(_) => {
