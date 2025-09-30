@@ -34,8 +34,8 @@ pub struct VulkanRender {
     pub swapchain: Swapchain,
     pub render_pass: vk::RenderPass,
 
-    pub command_pool: vk::CommandPool,
-    pub single_time_command_pool: vk::CommandPool,
+    pub cmd_pool: vk::CommandPool,
+    pub single_time_cmd_pool: vk::CommandPool,
 
     uniform_buffers: [Buffer; MFIF],
     uniform_buffers_mapped: [*mut Matrix4<f32>; MFIF],
@@ -70,8 +70,8 @@ impl VulkanRender {
 
         let (base, surface_loader, surface) = VkBase::create(0, display_handle, window_handle);
 
-        let command_pool = Self::create_command_pool(&base);
-        let single_time_command_pool = Self::create_single_time_command_pool(&base);
+        let cmd_pool = Self::create_cmd_pool(&base);
+        let single_time_cmd_pool = Self::create_single_time_cmd_pool(&base);
 
         let window_size = window.inner_size();
         let mut swapchain = Swapchain::create(
@@ -89,17 +89,17 @@ impl VulkanRender {
 
         let depth_image = Self::create_depth_resources(
             &base,
-            command_pool,
+            cmd_pool,
             Extent3D {
                 width: window_size.width,
                 height: window_size.height,
                 depth: 1,
             },
         );
-        let cmd_buf = SinlgeTimeCommands::begin(&base, single_time_command_pool);
-        let (mut texture_image, staging_buf) = Self::create_texture_image(&base, cmd_buf);
-        let (mut font_atlas, staging_buf2) = Self::create_font_atlas(&base, cmd_buf);
-        SinlgeTimeCommands::end(&base, single_time_command_pool, cmd_buf);
+        let cmd_buf = SinlgeTimeCommands::begin(&base, single_time_cmd_pool);
+        let (mut texture_image, mut staging_buf) = Self::create_texture_image(&base, cmd_buf);
+        let (mut font_atlas, mut staging_buf2) = Self::create_font_atlas(&base, cmd_buf);
+        SinlgeTimeCommands::end(&base, single_time_cmd_pool, cmd_buf);
 
         staging_buf.destroy(&base.device);
         staging_buf2.destroy(&base.device);
@@ -124,7 +124,7 @@ impl VulkanRender {
             size_of::<Matrix4<f32>>() as _,
         );
 
-        let command_buffers = Self::create_command_buffers(&base.device, command_pool);
+        let command_buffers = Self::create_command_buffers(&base.device, cmd_pool);
         let (image_available_semaphores, render_finsih_semaphores, in_flight_fences) =
             Self::create_sync_object(&base.device, swapchain.image_views.len());
 
@@ -136,8 +136,8 @@ impl VulkanRender {
             swapchain,
             render_pass,
 
-            command_pool,
-            single_time_command_pool,
+            cmd_pool,
+            single_time_cmd_pool,
 
             uniform_buffers: ui_uniform_buffers,
             uniform_buffers_mapped: ui_uniform_buffers_mapped,
@@ -180,7 +180,7 @@ impl VulkanRender {
 
         self.depth_image = Self::create_depth_resources(
             &self.base,
-            self.single_time_command_pool,
+            self.single_time_cmd_pool,
             Extent3D {
                 width: self.window_size.width,
                 height: self.window_size.height,
@@ -304,7 +304,7 @@ impl VulkanRender {
         }
     }
 
-    fn create_command_pool(base: &VkBase) -> vk::CommandPool {
+    fn create_cmd_pool(base: &VkBase) -> vk::CommandPool {
         let pool_info = vk::CommandPoolCreateInfo {
             flags: vk::CommandPoolCreateFlags::TRANSIENT,
             queue_family_index: base.queue_family_index,
@@ -314,7 +314,7 @@ impl VulkanRender {
         unsafe { base.device.create_command_pool(&pool_info, None).unwrap() }
     }
 
-    fn create_single_time_command_pool(base: &VkBase) -> vk::CommandPool {
+    fn create_single_time_cmd_pool(base: &VkBase) -> vk::CommandPool {
         let pool_info = vk::CommandPoolCreateInfo {
             flags: vk::CommandPoolCreateFlags::TRANSIENT,
             queue_family_index: base.queue_family_index,
@@ -326,10 +326,10 @@ impl VulkanRender {
 
     fn create_command_buffers(
         device: &ash::Device,
-        command_pool: vk::CommandPool,
+        cmd_pool: vk::CommandPool,
     ) -> [vk::CommandBuffer; MFIF] {
         let aloc_info = vk::CommandBufferAllocateInfo {
-            command_pool,
+            command_pool: cmd_pool,
             level: vk::CommandBufferLevel::PRIMARY,
             command_buffer_count: MFIF as _,
             ..Default::default()
@@ -362,7 +362,7 @@ impl VulkanRender {
             self.base.device.reset_fences(&[in_flight_fence]).unwrap();
             self.base
                 .device
-                .reset_command_pool(self.command_pool, vk::CommandPoolResetFlags::empty())
+                .reset_command_pool(self.cmd_pool, vk::CommandPoolResetFlags::empty())
                 .unwrap();
         };
 
@@ -497,7 +497,7 @@ impl VulkanRender {
                 &render_pass_info,
                 vk::SubpassContents::INLINE,
             );
-            self.ui_state.borrow().draw(
+            self.ui_state.borrow_mut().draw(
                 device,
                 command_buffer,
                 self.ui_descriptor_sets[self.current_frame],
@@ -690,7 +690,7 @@ impl VulkanRender {
 
     fn create_depth_resources(
         base: &VkBase,
-        command_pool: vk::CommandPool,
+        cmd_pool: vk::CommandPool,
         extent: Extent3D,
     ) -> graphics::Image {
         let mut depth_image = graphics::Image::create(
@@ -701,13 +701,13 @@ impl VulkanRender {
             ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
-        let cmd_buf = SinlgeTimeCommands::begin(base, command_pool);
+        let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
         depth_image.trasition_layout(
             base,
             cmd_buf,
             vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         );
-        SinlgeTimeCommands::end(base, command_pool, cmd_buf);
+        SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
         depth_image.create_view(base, vk::ImageAspectFlags::DEPTH);
         depth_image
     }
@@ -715,7 +715,7 @@ impl VulkanRender {
     pub fn update_ui(&mut self) {
         self.ui_state
             .borrow_mut()
-            .update(&self.base, self.single_time_command_pool);
+            .update(&self.base, self.single_time_cmd_pool);
     }
 
     pub fn destroy(&mut self) {
@@ -737,10 +737,10 @@ impl VulkanRender {
                 self.uniform_buffers[i].destroy(device);
             }
 
-            self.ui_state.borrow().destroy(device);
+            self.ui_state.borrow_mut().destroy(device);
             device.destroy_descriptor_set_layout(self.ui_descriptor_set_layout, None);
-            device.destroy_command_pool(self.command_pool, None);
-            device.destroy_command_pool(self.single_time_command_pool, None);
+            device.destroy_command_pool(self.cmd_pool, None);
+            device.destroy_command_pool(self.single_time_cmd_pool, None);
             device.destroy_descriptor_pool(self.ui_descriptor_pool, None);
             device.destroy_render_pass(self.render_pass, None);
             self.swapchain.destroy(device);

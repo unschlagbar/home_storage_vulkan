@@ -6,7 +6,7 @@ use iron_oxide::{
     graphics::formats::Color,
     ui::{
         Button, ButtonState, CallContext, Container, DirtyFlags, ErasedFnPointer, OutArea,
-        QueuedEvent, Text, UiEvent, UiState, UiUnit,
+        QueuedEvent, Text, UiEvent, UiState, UiUnit::*,
     },
 };
 
@@ -27,8 +27,8 @@ impl Explorer {
 
             let root = ui.add_element(Container {
                 color: Color::ZERO,
-                width: UiUnit::Relative(1.0),
-                height: UiUnit::Relative(1.0),
+                width: Relative(1.0),
+                height: Relative(1.0),
                 ..Default::default()
             });
 
@@ -36,8 +36,8 @@ impl Explorer {
                 .add_child_to(
                     Container {
                         color: Color::rgb(20, 20, 20),
-                        width: UiUnit::Relative(1.0),
-                        height: UiUnit::Px(40.0),
+                        width: Relative(1.0),
+                        height: Px(40.0),
                         ..Default::default()
                     },
                     root,
@@ -48,11 +48,12 @@ impl Explorer {
             ui.add_child_to(
                 Button {
                     color: Color::rgb(20, 20, 20),
-                    width: UiUnit::Px(40.0),
-                    height: UiUnit::Px(40.0),
+                    width: Px(40.0),
+                    height: Px(40.0),
                     margin: OutArea::new(3.0),
                     callback: ErasedFnPointer::from_free(on_click),
                     message: GO_BACK,
+                    childs: vec![],
                     ..Default::default()
                 },
                 nav_bar,
@@ -62,8 +63,8 @@ impl Explorer {
                 .add_child_to(
                     Container {
                         color: Color::rgb(30, 30, 30),
-                        width: UiUnit::Fill,
-                        height: UiUnit::Fill,
+                        width: Fill,
+                        height: Fill,
                         border: [1.0; 4],
                         border_color: Color::rgb(100, 100, 100),
                         padding: OutArea::new(2.0),
@@ -121,10 +122,10 @@ impl Explorer {
 
                     let child = Button {
                         color: Color::ZERO,
-                        height: UiUnit::Px(30.0),
-                        width: UiUnit::Relative(1.0),
-                        padding: OutArea::horizontal(UiUnit::Px(2.0)),
-                        corner: [UiUnit::Px(5.0); 4],
+                        height: Px(30.0),
+                        width: Relative(1.0),
+                        padding: OutArea::horizontal(Px(2.0)),
+                        corner: [Px(5.0); 4],
                         callback: ErasedFnPointer::from_free(on_click),
                         message: if entry.path().is_dir() {
                             FOLDER_CLICK
@@ -146,9 +147,9 @@ impl Explorer {
                 if is_empty {
                     let child = Container {
                         color: Color::ZERO,
-                        height: UiUnit::Px(50.0),
-                        width: UiUnit::Relative(1.0),
-                        padding: OutArea::horizontal(UiUnit::Px(2.0)),
+                        height: Px(50.0),
+                        width: Relative(1.0),
+                        padding: OutArea::horizontal(Px(2.0)),
                         childs: vec![
                             Text {
                                 text: "This Folder is Empty".to_string(),
@@ -171,13 +172,13 @@ impl Explorer {
                 let e_message = Ticking {
                     inner: AbsoluteLayout {
                         color: Color::rgb(255, 255, 255),
-                        x: UiUnit::Px(ui.cursor_pos.x),
-                        y: UiUnit::Px(ui.cursor_pos.y),
+                        x: Px(ui.cursor_pos.x),
+                        y: Px(ui.cursor_pos.y),
                         border: [1.0; 4],
-                        width: UiUnit::Auto,
-                        height: UiUnit::Auto,
+                        width: Auto,
+                        height: Auto,
                         padding: OutArea::new(3.0),
-                        corner: [UiUnit::Px(4.0); 4],
+                        corner: [Px(4.0); 4],
                         childs: vec![
                             Text {
                                 text: error.to_string(),
