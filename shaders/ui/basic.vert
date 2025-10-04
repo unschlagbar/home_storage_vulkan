@@ -15,12 +15,12 @@ layout(location = 7) in float inCorner;
 layout(location = 8) in float z_index;
 
 layout(location = 0) out vec2 fragTexCoord;
-layout(location = 1) out vec4 fragColor;
-layout(location = 2) out vec4 fragBorderColor;
-layout(location = 3) out float fragWidth;
-layout(location = 4) out float fragHeight;
-layout(location = 5) out float fragBorder;
-layout(location = 6) out float fragCorner;
+layout(location = 1) out flat vec4 fragColor;
+layout(location = 2) out flat vec4 fragBorderColor;
+layout(location = 3) out flat float fragWidth;
+layout(location = 4) out flat float fragHeight;
+layout(location = 5) out flat float fragBorder;
+layout(location = 6) out flat float fragCorner;
 
 void main() {
     vec2 uv = vec2(((gl_VertexIndex << 1) & 2) >> 1, (gl_VertexIndex & 2) >> 1);

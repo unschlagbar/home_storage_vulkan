@@ -22,7 +22,7 @@ use winit::{
     window::Window,
 };
 
-use crate::app::FPS_LIMIT;
+use crate::app::VSYNC;
 
 // Max frames in flight
 pub const MFIF: usize = 1;
@@ -76,7 +76,7 @@ impl VulkanRender {
         let window_size = window.inner_size();
         let mut swapchain = Swapchain::create(
             &base,
-            if FPS_LIMIT {
+            if VSYNC {
                 vk::PresentModeKHR::FIFO
             } else {
                 vk::PresentModeKHR::IMMEDIATE
@@ -349,7 +349,7 @@ impl VulkanRender {
             return;
         }
 
-        println!("draw");
+        //println!("draw");
 
         let in_flight_fence = self.in_flight_fences[self.current_frame];
         let available_semaphore = self.image_available_semaphores[self.current_frame];

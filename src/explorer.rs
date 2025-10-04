@@ -1,9 +1,10 @@
 use std::env;
+use std::ptr::null_mut;
 use std::{cell::RefCell, fs, path::PathBuf, process::Command, rc::Rc};
 
 use iron_oxide::ui::{AbsoluteLayout, Align, ScrollPanel, Ticking, TypeConst};
 use iron_oxide::{
-    graphics::formats::Color,
+    graphics::formats::RGBA,
     ui::{
         Button, ButtonState, CallContext, Container, DirtyFlags, ErasedFnPointer, OutArea,
         QueuedEvent, Text, UiEvent, UiState, UiUnit::*,
@@ -16,6 +17,8 @@ const GO_BACK: u16 = 3;
 
 pub struct Explorer {
     pub content_window: u32,
+    pub tool_tip: u32,
+
     pub path: PathBuf,
     pub ui: Rc<RefCell<UiState>>,
 }
@@ -26,7 +29,7 @@ impl Explorer {
             let mut ui = ui.borrow_mut();
 
             let root = ui.add_element(Container {
-                color: Color::ZERO,
+                color: RGBA::ZERO,
                 width: Relative(1.0),
                 height: Relative(1.0),
                 ..Default::default()
@@ -35,7 +38,7 @@ impl Explorer {
             let nav_bar = ui
                 .add_child_to(
                     Container {
-                        color: Color::rgb(20, 20, 20),
+                        color: RGBA::rgb(20, 20, 20),
                         width: Relative(1.0),
                         height: Px(40.0),
                         ..Default::default()
@@ -47,7 +50,7 @@ impl Explorer {
             //Back Button
             ui.add_child_to(
                 Button {
-                    color: Color::rgb(20, 20, 20),
+                    color: RGBA::rgb(20, 20, 20),
                     width: Px(40.0),
                     height: Px(40.0),
                     margin: OutArea::new(3.0),
@@ -62,11 +65,11 @@ impl Explorer {
             let content = ui
                 .add_child_to(
                     Container {
-                        color: Color::rgb(30, 30, 30),
+                        color: RGBA::rgb(30, 30, 30),
                         width: Fill,
                         height: Fill,
                         border: [1.0; 4],
-                        border_color: Color::rgb(100, 100, 100),
+                        border_color: RGBA::rgb(100, 100, 100),
                         padding: OutArea::new(2.0),
                         ..Default::default()
                     },
@@ -85,6 +88,7 @@ impl Explorer {
         };
         Self {
             content_window,
+            tool_tip: u32::MAX,
             #[cfg(target_os = "windows")]
             path: env::var("USERPROFILE").ok().unwrap_or("C:/".into()).into(),
             #[cfg(not(target_os = "windows"))]
@@ -121,7 +125,7 @@ impl Explorer {
                     is_empty = false;
 
                     let child = Button {
-                        color: Color::ZERO,
+                        color: RGBA::ZERO,
                         height: Px(30.0),
                         width: Relative(1.0),
                         padding: OutArea::horizontal(Px(2.0)),
@@ -146,14 +150,14 @@ impl Explorer {
 
                 if is_empty {
                     let child = Container {
-                        color: Color::ZERO,
+                        color: RGBA::ZERO,
                         height: Px(50.0),
                         width: Relative(1.0),
                         padding: OutArea::horizontal(Px(2.0)),
                         childs: vec![
                             Text {
                                 text: "This Folder is Empty".to_string(),
-                                color: Color::RED,
+                                color: RGBA::RED,
                                 align: Align::Center,
                                 ..Default::default()
                             }
@@ -171,7 +175,7 @@ impl Explorer {
 
                 let e_message = Ticking {
                     inner: AbsoluteLayout {
-                        color: Color::rgb(255, 255, 255),
+                        color: RGBA::rgb(255, 255, 255),
                         x: Px(ui.cursor_pos.x),
                         y: Px(ui.cursor_pos.y),
                         border: [1.0; 4],
@@ -182,7 +186,7 @@ impl Explorer {
                         childs: vec![
                             Text {
                                 text: error.to_string(),
-                                color: Color::RED,
+                                color: RGBA::RED,
                                 ..Default::default()
                             }
                             .wrap(&ui),
@@ -217,27 +221,92 @@ impl Explorer {
                     }
                 }
                 FILE_CLICK => {
-                    let path = {
-                        let mut ui = self.ui.borrow_mut();
-                        let element = ui.get_element(event.element_id).unwrap();
-                        let text = element.get_text().unwrap();
-                        self.path.join(text)
-                    };
-
-                    let _ = if cfg!(target_os = "windows") {
-                        Command::new("cmd")
-                            .args(["/C", "start", "", path.to_str().unwrap()])
-                            .spawn()
-                    } else if cfg!(target_os = "linux") {
-                        Command::new("xdg-open").arg(path).spawn()
-                    } else {
-                        Command::new("open").arg(path).spawn()
-                    }
-                    .expect("Datei konnte nicht geöffnet werden")
-                    .wait();
+                    self.open_file(event.element_id);
                 }
                 _ => unreachable!(),
             }
+        }
+    }
+
+    fn open_file(&mut self, clicked_id: u32) {
+        let path = {
+            let mut ui = self.ui.borrow_mut();
+            let element = ui.get_element(clicked_id).unwrap();
+            let text = element.get_text().unwrap();
+            self.path.join(text)
+        };
+
+        let _ = if cfg!(target_os = "windows") {
+            Command::new("cmd")
+                .args(["/C", "start", "", path.to_str().unwrap()])
+                .spawn()
+        } else if cfg!(target_os = "linux") {
+            Command::new("xdg-open").arg(path).spawn()
+        } else {
+            Command::new("open").arg(path).spawn()
+        }
+        .expect("Datei konnte nicht geöffnet werden")
+        .wait();
+    }
+
+    pub fn right_click(&mut self) -> bool {
+        let mut ui = self.ui.borrow_mut();
+
+        if let Some(hovered) = ui.get_hovered() {
+            if hovered.typ == iron_oxide::ui::ElementType::Button {
+                if self.tool_tip != u32::MAX {
+                    ui.remove_element(null_mut(), self.tool_tip);
+                }
+
+                let x = Px(ui.cursor_pos.x);
+                let y = Px(ui.cursor_pos.y);
+
+                let tool_tip = AbsoluteLayout {
+                    x,
+                    y,
+                    width: Px(200.0),
+                    height: Px(100.0),
+                    color: RGBA::GREY,
+                    border_color: RGBA::GREEN,
+                    border: [1.0; 4],
+                    corner: [Px(7.0); 4],
+                    childs: vec![
+                        Button {
+                            margin: OutArea::new(5.0),
+                            width: Fill,
+                            height: Relative(0.2),
+                            color: RGBA::RED,
+                            border_color: RGBA::BLUE,
+                            border: [1.0; 4],
+                            corner: [Px(5.0); 4],
+                            childs: vec![
+                                Text {
+                                    text: "Umbennenen".to_string(),
+                                    color: RGBA::WHITE,
+                                    ..Default::default()
+                                }.wrap(&ui)
+                            ],
+                            ..Default::default()
+                        }.wrap(&ui)
+                    ],
+                    ..Default::default()
+                };
+
+                self.tool_tip = ui.add_element(tool_tip);
+            }
+            ui.dirty = DirtyFlags::Resize;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn mouse_click(&mut self) {
+        if self.tool_tip != u32::MAX {
+            let mut ui = self.ui.borrow_mut();
+            ui.remove_element(null_mut(), self.tool_tip);
+
+            self.tool_tip = u32::MAX;
         }
     }
 }
@@ -246,13 +315,13 @@ fn on_click(context: CallContext) {
     let button: &mut Button = context.element.downcast_mut();
     match button.state {
         ButtonState::Normal => {
-            button.color = Color::ZERO;
+            button.color = RGBA::ZERO;
         }
         ButtonState::Hovered => {
-            button.color = Color::rgb(40, 40, 40);
+            button.color = RGBA::rgb(40, 40, 40);
         }
         ButtonState::Pressed => {
-            button.color = Color::rgb(60, 60, 60);
+            button.color = RGBA::rgb(60, 60, 60);
         }
         ButtonState::Disabled => unreachable!(),
     }

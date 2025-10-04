@@ -14,7 +14,7 @@ use std::{
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
-    event::{MouseButton, TouchPhase, WindowEvent},
+    event::{ElementState, MouseButton, TouchPhase, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow},
     keyboard::{KeyCode, PhysicalKey},
     window::{Theme, Window, WindowId},
@@ -27,7 +27,7 @@ const APP_NAME: &str = "Home Server";
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
 
-pub const FPS_LIMIT: bool = false;
+pub const VSYNC: bool = false;
 const DEFAULT_FPS: f32 = 144.0;
 
 pub struct App {
@@ -125,6 +125,20 @@ impl ApplicationHandler for App {
                     self.dirty = false;
                 }
             }
+            WindowEvent::CursorLeft { device_id: _ } => {
+                let result = {
+                    let mut ui = self.ui.borrow_mut();
+                    ui.update_cursor(Vec2::new(1000.0, 1000.0), UiEvent::Move)
+                };
+
+                if result.is_new() {
+                    self.dirty = true;
+                    window.request_redraw();
+                } else if self.dirty && result.is_none() {
+                    window.request_redraw();
+                    self.dirty = false;
+                }
+            }
             WindowEvent::MouseWheel {
                 device_id: _,
                 delta,
@@ -147,19 +161,27 @@ impl ApplicationHandler for App {
                 device_id: _,
                 state,
                 button,
-            } => match button {
-                MouseButton::Left => {
-                    let result = self
-                        .ui
-                        .borrow_mut()
-                        .update_cursor(self.cursor_pos, state.into());
+            } => {
+                self.explorer.mouse_click();
+                match button {
+                    MouseButton::Left => {
+                        let result = self
+                            .ui
+                            .borrow_mut()
+                            .update_cursor(self.cursor_pos, state.into());
 
-                    if result.is_new() {
-                        window.request_redraw();
+                        if result.is_new() {
+                            window.request_redraw();
+                        }
                     }
+                    MouseButton::Right => {
+                        if state == ElementState::Pressed && self.explorer.right_click() {
+                            window.request_redraw();
+                        }
+                    }
+                    _ => (),
                 }
-                _ => (),
-            },
+            }
             WindowEvent::Touch(touch) => {
                 let cursor_pos = touch.location.into();
                 match touch.phase {
@@ -175,7 +197,10 @@ impl ApplicationHandler for App {
                     .borrow_mut()
                     .update_cursor(cursor_pos, touch.phase.into());
             }
-            WindowEvent::RedrawRequested => renderer.borrow_mut().draw_frame(),
+            WindowEvent::RedrawRequested => {
+                renderer.borrow_mut().draw_frame();
+                return;
+            }
             WindowEvent::KeyboardInput {
                 device_id: _,
                 event,
@@ -193,9 +218,6 @@ impl ApplicationHandler for App {
                         KeyCode::KeyT => {
                             window.set_maximized(true);
                         }
-                        KeyCode::KeyZ => {
-                            window.set_maximized(false);
-                        }
                         KeyCode::KeyU => {
                             window.set_minimized(true);
                         }
@@ -204,12 +226,10 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::Resized(new_size) => {
-                print!("re");
                 let mut renderer = renderer.borrow_mut();
                 if new_size == renderer.window_size {
                     return;
                 }
-                println!("sized");
                 renderer.recreate_swapchain(new_size);
                 window.request_redraw();
             }
