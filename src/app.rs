@@ -162,7 +162,6 @@ impl ApplicationHandler for App {
                 state,
                 button,
             } => {
-                self.explorer.mouse_click();
                 match button {
                     MouseButton::Left => {
                         let result = self
@@ -173,8 +172,12 @@ impl ApplicationHandler for App {
                         if result.is_new() {
                             window.request_redraw();
                         }
+                        if self.explorer.mouse_click() {
+                                window.request_redraw();
+                            }
                     }
                     MouseButton::Right => {
+                        //self.explorer.mouse_click();
                         if state == ElementState::Pressed && self.explorer.right_click() {
                             window.request_redraw();
                         }

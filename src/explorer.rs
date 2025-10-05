@@ -2,22 +2,23 @@ use std::env;
 use std::ptr::null_mut;
 use std::{cell::RefCell, fs, path::PathBuf, process::Command, rc::Rc};
 
-use iron_oxide::ui::{AbsoluteLayout, Align, ScrollPanel, Ticking, TypeConst};
+use iron_oxide::ui::{Absolute, Align, ScrollPanel, Ticking, TypeConst};
 use iron_oxide::{
     graphics::formats::RGBA,
     ui::{
-        Button, ButtonState, CallContext, Container, DirtyFlags, ErasedFnPointer, OutArea,
-        QueuedEvent, Text, UiEvent, UiState, UiUnit::*,
+        Button, ButtonState, CallContext, Container, DirtyFlags, FnPtr, OutArea, QueuedEvent, Text,
+        UiEvent, UiState, UiUnit::*,
     },
 };
 
-const FOLDER_CLICK: u16 = 1;
-const FILE_CLICK: u16 = 2;
+const OPEN: u16 = 1;
+const ENTRY_ACTION: u16 = 2;
 const GO_BACK: u16 = 3;
 
 pub struct Explorer {
     pub content_window: u32,
     pub tool_tip: u32,
+    pub hovered_element: u32,
 
     pub path: PathBuf,
     pub ui: Rc<RefCell<UiState>>,
@@ -28,12 +29,15 @@ impl Explorer {
         let content_window = {
             let mut ui = ui.borrow_mut();
 
-            let root = ui.add_element(Container {
-                color: RGBA::ZERO,
-                width: Relative(1.0),
-                height: Relative(1.0),
-                ..Default::default()
-            });
+            let root = ui.add_element(
+                Container {
+                    color: RGBA::ZERO,
+                    width: Relative(1.0),
+                    height: Relative(1.0),
+                    ..Default::default()
+                },
+                "root",
+            );
 
             let nav_bar = ui
                 .add_child_to(
@@ -43,6 +47,7 @@ impl Explorer {
                         height: Px(40.0),
                         ..Default::default()
                     },
+                    "nav_bar",
                     root,
                 )
                 .unwrap();
@@ -54,11 +59,12 @@ impl Explorer {
                     width: Px(40.0),
                     height: Px(40.0),
                     margin: OutArea::new(3.0),
-                    callback: ErasedFnPointer::from_free(on_click),
+                    callback: FnPtr::new(on_click),
                     message: GO_BACK,
                     childs: vec![],
                     ..Default::default()
                 },
+                "back",
                 nav_bar,
             );
 
@@ -73,6 +79,7 @@ impl Explorer {
                         padding: OutArea::new(2.0),
                         ..Default::default()
                     },
+                    "content",
                     root,
                 )
                 .unwrap();
@@ -82,6 +89,7 @@ impl Explorer {
                     padding: OutArea::new(2.0),
                     ..Default::default()
                 },
+                "scroll_pannel",
                 content,
             )
             .unwrap()
@@ -89,6 +97,7 @@ impl Explorer {
         Self {
             content_window,
             tool_tip: u32::MAX,
+            hovered_element: 0,
             #[cfg(target_os = "windows")]
             path: env::var("USERPROFILE").ok().unwrap_or("C:/".into()).into(),
             #[cfg(not(target_os = "windows"))]
@@ -130,22 +139,26 @@ impl Explorer {
                         width: Relative(1.0),
                         padding: OutArea::horizontal(Px(2.0)),
                         corner: [Px(5.0); 4],
-                        callback: ErasedFnPointer::from_free(on_click),
-                        message: if entry.path().is_dir() {
-                            FOLDER_CLICK
-                        } else {
-                            FILE_CLICK
-                        },
+                        callback: FnPtr::new(on_click),
+                        message: OPEN,
                         childs: vec![
                             Text {
                                 text: name,
                                 ..Default::default()
                             }
-                            .wrap(&ui),
+                            .wrap("", &ui),
                         ],
                         ..Default::default()
                     };
-                    ui.add_child_to(child, self.content_window);
+                    ui.add_child_to(
+                        child,
+                        if entry.path().is_dir() {
+                            "folder"
+                        } else {
+                            "file"
+                        },
+                        self.content_window,
+                    );
                 }
 
                 if is_empty {
@@ -161,11 +174,11 @@ impl Explorer {
                                 align: Align::Center,
                                 ..Default::default()
                             }
-                            .wrap(&ui),
+                            .wrap("empty_msg", &ui),
                         ],
                         ..Default::default()
                     };
-                    ui.add_child_to(child, self.content_window);
+                    ui.add_child_to(child, "", self.content_window);
                 }
             }
             Err(error) => {
@@ -174,7 +187,7 @@ impl Explorer {
                 }
 
                 let e_message = Ticking {
-                    inner: AbsoluteLayout {
+                    inner: Absolute {
                         color: RGBA::rgb(255, 255, 255),
                         x: Px(ui.cursor_pos.x),
                         y: Px(ui.cursor_pos.y),
@@ -189,15 +202,15 @@ impl Explorer {
                                 color: RGBA::RED,
                                 ..Default::default()
                             }
-                            .wrap(&ui),
+                            .wrap("", &ui),
                         ],
                         ..Default::default()
                     },
-                    callback: ErasedFnPointer::from_free(tick_error),
+                    tick: FnPtr::new(tick_error),
                     ..Default::default()
                 };
 
-                ui.add_element(e_message);
+                ui.add_element(e_message, "e_msg");
             }
         }
     }
@@ -205,14 +218,18 @@ impl Explorer {
     pub fn proceed_event(&mut self, event: QueuedEvent) {
         if event.event == UiEvent::Press {
             match event.message {
-                FOLDER_CLICK => {
-                    {
-                        let mut ui = self.ui.borrow_mut();
-                        let element = ui.get_element(event.element_id).unwrap();
-                        let text = element.get_text().unwrap();
-                        self.path.push(text);
-                    };
-                    self.display_path();
+                OPEN => {
+                    if event.element_name == "folder" {
+                        {
+                            let mut ui = self.ui.borrow_mut();
+                            let element = ui.get_element(event.element_id).unwrap();
+                            let text = element.get_text().unwrap();
+                            self.path.push(text);
+                        };
+                        self.display_path();
+                    } else {
+                        self.open_file(event.element_id);
+                    }
                 }
                 GO_BACK => {
                     if let Some(path) = self.path.parent() {
@@ -220,9 +237,25 @@ impl Explorer {
                         self.display_path();
                     }
                 }
-                FILE_CLICK => {
-                    self.open_file(event.element_id);
-                }
+                ENTRY_ACTION => match event.element_name {
+                    "open" => {
+                        let mut ui = self.ui.borrow_mut();
+                        let selected = ui.get_element(self.hovered_element).unwrap();
+                        if selected.name == "folder" {
+                            let text = selected.get_text().unwrap();
+                            self.path.push(text);
+                            drop(ui);
+                            self.display_path();
+                        } else {
+                            let id = selected.id;
+                            drop(ui);
+                            self.open_file(id);
+                        }
+                        println!("yes")
+                    }
+                    _ => (),
+                },
+
                 _ => unreachable!(),
             }
         }
@@ -253,7 +286,9 @@ impl Explorer {
         let mut ui = self.ui.borrow_mut();
 
         if let Some(hovered) = ui.get_hovered() {
-            if hovered.typ == iron_oxide::ui::ElementType::Button {
+            if hovered.name == "file" || hovered.name == "folder" {
+                self.hovered_element = hovered.id;
+
                 if self.tool_tip != u32::MAX {
                     ui.remove_element(null_mut(), self.tool_tip);
                 }
@@ -261,38 +296,87 @@ impl Explorer {
                 let x = Px(ui.cursor_pos.x);
                 let y = Px(ui.cursor_pos.y);
 
-                let tool_tip = AbsoluteLayout {
+                let tool_tip = Absolute {
                     x,
                     y,
                     width: Px(200.0),
-                    height: Px(100.0),
-                    color: RGBA::GREY,
+                    height: Auto,
+                    color: RGBA::rgb(50, 50, 50),
                     border_color: RGBA::GREEN,
                     border: [1.0; 4],
                     corner: [Px(7.0); 4],
                     childs: vec![
                         Button {
-                            margin: OutArea::new(5.0),
-                            width: Fill,
-                            height: Relative(0.2),
-                            color: RGBA::RED,
+                            margin: OutArea::new(2.0),
+                            // TODO Make fill work!
+                            width: Relative(1.0),
+                            height: Px(30.0),
+                            color: RGBA::ZERO,
                             border_color: RGBA::BLUE,
                             border: [1.0; 4],
                             corner: [Px(5.0); 4],
+                            callback: FnPtr::new(on_click),
+                            message: ENTRY_ACTION,
+                            childs: vec![
+                                Text {
+                                    text: "Öffnen".to_string(),
+                                    color: RGBA::WHITE,
+                                    ..Default::default()
+                                }
+                                .wrap("", &ui),
+                            ],
+                            ..Default::default()
+                        }
+                        .wrap("open", &ui),
+                        Button {
+                            margin: OutArea::new(2.0),
+                            // TODO Make fill work!
+                            width: Relative(1.0),
+                            height: Px(30.0),
+                            color: RGBA::ZERO,
+                            border_color: RGBA::BLUE,
+                            border: [1.0; 4],
+                            corner: [Px(5.0); 4],
+                            callback: FnPtr::new(on_click),
+                            message: ENTRY_ACTION,
                             childs: vec![
                                 Text {
                                     text: "Umbennenen".to_string(),
                                     color: RGBA::WHITE,
                                     ..Default::default()
-                                }.wrap(&ui)
+                                }
+                                .wrap("", &ui),
                             ],
                             ..Default::default()
-                        }.wrap(&ui)
+                        }
+                        .wrap("rename", &ui),
+                        Button {
+                            margin: OutArea::new(2.0),
+                            // TODO Make fill work!
+                            width: Relative(1.0),
+                            height: Px(30.0),
+                            color: RGBA::ZERO,
+                            border_color: RGBA::BLUE,
+                            border: [1.0; 4],
+                            corner: [Px(5.0); 4],
+                            callback: FnPtr::new(on_click),
+                            message: ENTRY_ACTION,
+                            childs: vec![
+                                Text {
+                                    text: "Löschen".to_string(),
+                                    color: RGBA::WHITE,
+                                    ..Default::default()
+                                }
+                                .wrap("", &ui),
+                            ],
+                            ..Default::default()
+                        }
+                        .wrap("delete", &ui),
                     ],
                     ..Default::default()
                 };
 
-                self.tool_tip = ui.add_element(tool_tip);
+                self.tool_tip = ui.add_element(tool_tip, "");
             }
             ui.dirty = DirtyFlags::Resize;
             true
@@ -301,12 +385,16 @@ impl Explorer {
         }
     }
 
-    pub fn mouse_click(&mut self) {
+    pub fn mouse_click(&mut self) -> bool {
         if self.tool_tip != u32::MAX {
             let mut ui = self.ui.borrow_mut();
             ui.remove_element(null_mut(), self.tool_tip);
 
             self.tool_tip = u32::MAX;
+            ui.dirty = DirtyFlags::Resize;
+            true
+        } else {
+            false
         }
     }
 }
@@ -329,7 +417,7 @@ fn on_click(context: CallContext) {
 }
 
 fn tick_error(context: CallContext) {
-    let this: &mut Ticking<AbsoluteLayout> = context.element.downcast_mut();
+    let this: &mut Ticking<Absolute> = context.element.downcast_mut();
     if this.last_tick.elapsed().as_secs_f32() > 1.0 {
         context.element.remove_self(context.ui);
         context.ui.dirty = DirtyFlags::Resize;
