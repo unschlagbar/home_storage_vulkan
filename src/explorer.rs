@@ -251,9 +251,8 @@ impl Explorer {
                             drop(ui);
                             self.open_file(id);
                         }
-                        println!("yes")
                     }
-                    _ => (),
+                    name => println!("{name}"),
                 },
 
                 _ => unreachable!(),
