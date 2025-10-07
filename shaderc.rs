@@ -6,11 +6,17 @@ use std::{env, fs};
 const SHADER_DIR: &str = "shaders";
 const SPV_DIR: &str = "spv";
 
+#[cfg(target_os = "windows")]
+const GLSLC: &str = "/Bin/glslc.exe";
+
+#[cfg(not(target_os = "windows"))]
+const GLSLC: &str = "/bin/glslc";
+
 fn main() -> Result<(), Error> {
     println!("cargo:rerun-if-changed={SHADER_DIR}");
 
     let shader_compiler = match env::var("VULKAN_SDK") {
-        Ok(vulkan_sdk) => vulkan_sdk + "/Bin/glslc.exe",
+        Ok(vulkan_sdk) => vulkan_sdk + GLSLC,
         Err(_) => {
             println!("cargo::warning=Vulkan SDK env variable not set");
             return Ok(());

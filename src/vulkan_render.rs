@@ -68,7 +68,7 @@ impl VulkanRender {
         let display_handle = window.display_handle().unwrap().as_raw();
         let window_handle = window.window_handle().unwrap().as_raw();
 
-        let (base, surface_loader, surface) = VkBase::create(0, display_handle, window_handle);
+        let (base, surface_loader, surface) = VkBase::create(0, vk::API_VERSION_1_3, display_handle, window_handle);
 
         let cmd_pool = Self::create_cmd_pool(&base);
         let single_time_cmd_pool = Self::create_single_time_cmd_pool(&base);

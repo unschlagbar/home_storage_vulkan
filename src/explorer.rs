@@ -137,7 +137,7 @@ impl Explorer {
                         color: RGBA::ZERO,
                         height: Px(30.0),
                         width: Relative(1.0),
-                        padding: OutArea::horizontal(Px(2.0)),
+                        padding: OutArea::horizontal(Px(10.0)),
                         corner: [Px(5.0); 4],
                         callback: FnPtr::new(on_click),
                         message: OPEN,
