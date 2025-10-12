@@ -173,8 +173,8 @@ impl ApplicationHandler for App {
                             window.request_redraw();
                         }
                         if self.explorer.mouse_click() {
-                                window.request_redraw();
-                            }
+                            window.request_redraw();
+                        }
                     }
                     MouseButton::Right => {
                         //self.explorer.mouse_click();

@@ -1,5 +1,4 @@
 use std::env;
-use std::ptr::null_mut;
 use std::{cell::RefCell, fs, path::PathBuf, process::Command, rc::Rc};
 
 use iron_oxide::ui::{Absolute, Align, ScrollPanel, Ticking, TypeConst};
@@ -289,7 +288,7 @@ impl Explorer {
                 self.hovered_element = hovered.id;
 
                 if self.tool_tip != u32::MAX {
-                    ui.remove_element(null_mut(), self.tool_tip);
+                    ui.remove_element_by_id(self.tool_tip);
                 }
 
                 let x = Px(ui.cursor_pos.x);
@@ -387,7 +386,7 @@ impl Explorer {
     pub fn mouse_click(&mut self) -> bool {
         if self.tool_tip != u32::MAX {
             let mut ui = self.ui.borrow_mut();
-            ui.remove_element(null_mut(), self.tool_tip);
+            ui.remove_element_by_id(self.tool_tip);
 
             self.tool_tip = u32::MAX;
             ui.dirty = DirtyFlags::Resize;
