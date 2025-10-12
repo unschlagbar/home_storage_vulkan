@@ -233,6 +233,7 @@ impl ApplicationHandler for App {
                 if new_size == renderer.window_size {
                     return;
                 }
+                
                 renderer.recreate_swapchain(new_size);
                 window.request_redraw();
             }

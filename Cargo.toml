@@ -12,7 +12,6 @@ crate-type = ["cdylib"]
 codegen-units = 1
 lto = "fat"
 overflow-checks = false
-panic = "abort"
 debug = false
 strip = true
 

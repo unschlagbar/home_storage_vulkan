@@ -75,6 +75,7 @@ impl VulkanRender {
         let single_time_cmd_pool = Self::create_single_time_cmd_pool(&base);
 
         let window_size = window.inner_size();
+
         let mut swapchain = Swapchain::create(
             &base,
             if VSYNC {
@@ -105,12 +106,13 @@ impl VulkanRender {
         staging_buf.destroy(&base.device);
         staging_buf2.destroy(&base.device);
 
+        swapchain.update_caps(&base);
         swapchain.recreate(&base, window_size, render_pass, depth_image.view);
 
         texture_image.create_view(&base, vk::ImageAspectFlags::COLOR);
         font_atlas.create_view(&base, vk::ImageAspectFlags::COLOR);
 
-        let (ui_uniform_buffers, ui_uniform_buffers_mapped) = create_uniform_buffers(&base);
+        let (uniform_buffers, uniform_buffers_mapped) = create_uniform_buffers(&base);
 
         let texture_sampler = Self::create_texture_sampler(&base.device);
         let ui_descriptor_pool = create_ui_descriptor_pool(&base.device);
@@ -119,7 +121,7 @@ impl VulkanRender {
             &base.device,
             ui_descriptor_pool,
             ui_descriptor_set_layout,
-            &ui_uniform_buffers,
+            &uniform_buffers,
             texture_sampler,
             &[font_atlas.view, texture_image.view],
             size_of::<Matrix4<f32>>() as _,
@@ -140,8 +142,8 @@ impl VulkanRender {
             cmd_pool,
             single_time_cmd_pool,
 
-            uniform_buffers: ui_uniform_buffers,
-            uniform_buffers_mapped: ui_uniform_buffers_mapped,
+            uniform_buffers,
+            uniform_buffers_mapped,
 
             ui_descriptor_pool,
             ui_descriptor_sets,
@@ -170,21 +172,24 @@ impl VulkanRender {
 
     pub fn recreate_swapchain(&mut self, new_size: PhysicalSize<u32>) {
         self.window_size = new_size;
-
+        
         #[cfg(not(target_os = "android"))]
         if new_size.width == 0 || new_size.height == 0 {
             return;
         }
-
+        
         unsafe { self.base.device.device_wait_idle().unwrap_unchecked() };
         self.depth_image.destroy(&self.base.device);
+        
+        self.swapchain.update_caps(&self.base);
+        let extend = self.swapchain.capabilities.current_extent;
 
         self.depth_image = Self::create_depth_resources(
             &self.base,
             self.single_time_cmd_pool,
             Extent3D {
-                width: self.window_size.width,
-                height: self.window_size.height,
+                width: extend.width,
+                height: extend.height,
                 depth: 1,
             },
         );
