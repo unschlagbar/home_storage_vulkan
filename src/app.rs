@@ -27,7 +27,7 @@ const APP_NAME: &str = "Home Server";
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
 
-pub const VSYNC: bool = false;
+pub const VSYNC: bool = true;
 const DEFAULT_FPS: f32 = 144.0;
 
 pub struct App {

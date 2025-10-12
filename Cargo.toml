@@ -11,6 +11,7 @@ crate-type = ["cdylib"]
 [profile.release]
 codegen-units = 1
 lto = "fat"
+panic = "abort"
 overflow-checks = false
 debug = false
 strip = true
