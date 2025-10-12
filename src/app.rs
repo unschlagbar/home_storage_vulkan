@@ -105,6 +105,8 @@ impl ApplicationHandler for App {
             return;
         };
 
+        println!("event: {:?}", &event);
+
         match event {
             WindowEvent::CursorMoved {
                 device_id: _,
@@ -233,7 +235,7 @@ impl ApplicationHandler for App {
                 if new_size == renderer.window_size {
                     return;
                 }
-                
+                println!("resized");
                 renderer.recreate_swapchain(new_size);
                 window.request_redraw();
             }
@@ -252,9 +254,11 @@ impl ApplicationHandler for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        println!("Wait");
         if let Some(window) = &self.window
             && self.ui.borrow().needs_ticking()
         {
+            println!("ticking");
             event_loop.set_control_flow(ControlFlow::Poll);
 
             if self.time.elapsed().as_secs_f32() > self.target_frame_time {
@@ -284,7 +288,7 @@ impl ApplicationHandler for App {
         let window = self.create_window(event_loop);
         self.get_framerate(&window);
 
-        let mut renderer = if let Some(renderer) = &self.renderer {
+        let renderer = if let Some(renderer) = &self.renderer {
             renderer.replace(VulkanRender::create(&window, self.ui.clone()));
             renderer
         } else {
@@ -325,7 +329,7 @@ impl ApplicationHandler for App {
             );
         }
 
-        renderer.draw_frame();
+        //renderer.draw_frame();
         window.set_visible(true);
 
         self.window = Some(window);
