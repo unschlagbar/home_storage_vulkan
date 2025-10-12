@@ -389,11 +389,10 @@ impl VulkanRender {
             }
         };
 
-        self.update_ui();
-
         let render_finsih_semaphore = self.render_finsih_semaphores[image_index as usize];
         let command_buffer = self.command_buffers[self.current_frame];
 
+        let start = Instant::now();
         self.record_command_buffer(image_index, command_buffer);
 
         let submit_info = vk::SubmitInfo {
@@ -432,6 +431,8 @@ impl VulkanRender {
         } {
             return;
         }
+        println!("draw: {:?}", start.elapsed());
+
 
         self.current_frame = (self.current_frame + 1) % MFIF
     }
@@ -494,10 +495,12 @@ impl VulkanRender {
             device
                 .begin_command_buffer(command_buffer, &begin_info)
                 .unwrap();
-
+            
             device.cmd_set_scissor(command_buffer, 0, &[scissor]);
             device.cmd_set_viewport(command_buffer, 0, &[view_port]);
-
+            
+            self.ui_state.borrow_mut().update(&self.base, command_buffer);
+            
             device.cmd_begin_render_pass(
                 command_buffer,
                 &render_pass_info,
@@ -716,12 +719,6 @@ impl VulkanRender {
         SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
         depth_image.create_view(base, vk::ImageAspectFlags::DEPTH);
         depth_image
-    }
-
-    pub fn update_ui(&mut self) {
-        self.ui_state
-            .borrow_mut()
-            .update(&self.base, self.single_time_cmd_pool);
     }
 
     pub fn destroy(&mut self) {
