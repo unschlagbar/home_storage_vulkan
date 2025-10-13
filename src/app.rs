@@ -105,8 +105,6 @@ impl ApplicationHandler for App {
             return;
         };
 
-        println!("event: {:?}", &event);
-
         match event {
             WindowEvent::CursorMoved {
                 device_id: _,
@@ -235,7 +233,6 @@ impl ApplicationHandler for App {
                 if new_size == renderer.window_size {
                     return;
                 }
-                println!("resized");
                 renderer.recreate_swapchain(new_size);
                 window.request_redraw();
             }
@@ -254,11 +251,9 @@ impl ApplicationHandler for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        println!("Wait");
         if let Some(window) = &self.window
             && self.ui.borrow().needs_ticking()
         {
-            println!("ticking");
             event_loop.set_control_flow(ControlFlow::Poll);
 
             if self.time.elapsed().as_secs_f32() > self.target_frame_time {
@@ -329,7 +324,6 @@ impl ApplicationHandler for App {
             );
         }
 
-        //renderer.draw_frame();
         window.set_visible(true);
 
         self.window = Some(window);

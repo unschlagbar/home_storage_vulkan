@@ -242,7 +242,7 @@ impl VulkanRender {
         };
 
         let depth_attachment = vk::AttachmentDescription {
-            format: Format::D24_UNORM_S8_UINT,
+            format: Format::D16_UNORM,
             samples: vk::SampleCountFlags::TYPE_1,
             load_op: vk::AttachmentLoadOp::CLEAR,
             store_op: vk::AttachmentStoreOp::DONT_CARE,
@@ -355,8 +355,6 @@ impl VulkanRender {
             return;
         }
 
-        //println!("draw");
-
         let in_flight_fence = self.in_flight_fences[self.current_frame];
         let available_semaphore = self.image_available_semaphores[self.current_frame];
 
@@ -392,7 +390,6 @@ impl VulkanRender {
         let render_finsih_semaphore = self.render_finsih_semaphores[image_index as usize];
         let command_buffer = self.command_buffers[self.current_frame];
 
-        let start = Instant::now();
         self.record_command_buffer(image_index, command_buffer);
 
         let submit_info = vk::SubmitInfo {
@@ -431,8 +428,6 @@ impl VulkanRender {
         } {
             return;
         }
-        println!("draw: {:?}", start.elapsed());
-
 
         self.current_frame = (self.current_frame + 1) % MFIF
     }
@@ -705,7 +700,7 @@ impl VulkanRender {
         let mut depth_image = graphics::Image::create(
             base,
             extent,
-            Format::D24_UNORM_S8_UINT,
+            Format::D16_UNORM,
             vk::ImageTiling::OPTIMAL,
             ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
             MemoryPropertyFlags::DEVICE_LOCAL,

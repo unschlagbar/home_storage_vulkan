@@ -69,6 +69,8 @@ fn compile_shader(shader_path: &Path, compiler: &str) -> Result<(), Error> {
             "cargo::error=Shader compilation failed for: {}",
             String::from_utf8_lossy(&output.stderr)
         );
+    } else {
+        println!("cargo:info=Compiled GLSL {:?}", shader_path);
     }
 
     Ok(())
