@@ -490,11 +490,11 @@ impl VulkanRender {
             device
                 .begin_command_buffer(command_buffer, &begin_info)
                 .unwrap();
+
+            self.ui_state.borrow_mut().update(&self.base, command_buffer);
             
             device.cmd_set_scissor(command_buffer, 0, &[scissor]);
             device.cmd_set_viewport(command_buffer, 0, &[view_port]);
-            
-            self.ui_state.borrow_mut().update(&self.base, command_buffer);
             
             device.cmd_begin_render_pass(
                 command_buffer,
