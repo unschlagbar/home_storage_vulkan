@@ -1,6 +1,6 @@
 #version 450
 
-layout(binding = 1) uniform sampler2D texSampler[2];
+layout(binding = 1, set = 1) uniform sampler2D texSampler;
 
 layout(location = 0) in vec2 fragUv;
 layout(location = 1) in flat vec4 fragColor;
@@ -18,9 +18,6 @@ void main() {
 
     vec2 uv = vec2(mix(uv_x, uv_x + uv_x_size, fragUv.x), mix(uv_y, uv_y + uv_y_size, fragUv.y));
 
-    float texture = texture(texSampler[0], uv).r;
-    if (texture == 0.0) {
-        discard;
-    }
-    outColor = vec4(fragColor.rgb * texture, texture);
+    float a = textureLod(texSampler, uv, 0).r;
+    outColor = vec4(fragColor.rgb * a, a);
 }

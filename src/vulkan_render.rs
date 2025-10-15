@@ -10,7 +10,6 @@ use iron_oxide::{
 };
 use std::{
     cell::RefCell,
-    mem::size_of,
     ptr::{copy_nonoverlapping, null, null_mut},
     rc::Rc,
     thread::sleep,
@@ -37,12 +36,8 @@ pub struct VulkanRender {
     pub cmd_pool: vk::CommandPool,
     pub single_time_cmd_pool: vk::CommandPool,
 
-    uniform_buffers: [Buffer; MFIF],
+    pub uniform_buffers: [Buffer; MFIF],
     uniform_buffers_mapped: [*mut Matrix4<f32>; MFIF],
-
-    ui_descriptor_pool: vk::DescriptorPool,
-    pub ui_descriptor_sets: Vec<vk::DescriptorSet>,
-    pub ui_descriptor_set_layout: vk::DescriptorSetLayout,
 
     pub command_buffers: [vk::CommandBuffer; MFIF],
 
@@ -54,7 +49,7 @@ pub struct VulkanRender {
     texture_image: graphics::Image,
     pub texture_sampler: vk::Sampler,
 
-    font_atlas: graphics::Image,
+    pub font_atlas: graphics::Image,
 
     pub depth_image: graphics::Image,
 
@@ -115,17 +110,6 @@ impl VulkanRender {
         let (uniform_buffers, uniform_buffers_mapped) = create_uniform_buffers(&base);
 
         let texture_sampler = Self::create_texture_sampler(&base.device);
-        let ui_descriptor_pool = create_ui_descriptor_pool(&base.device);
-        let ui_descriptor_set_layout = create_ui_descriptor_set_layout(&base.device);
-        let ui_descriptor_sets = create_descriptor_sets(
-            &base.device,
-            ui_descriptor_pool,
-            ui_descriptor_set_layout,
-            &uniform_buffers,
-            texture_sampler,
-            &[font_atlas.view, texture_image.view],
-            size_of::<Matrix4<f32>>() as _,
-        );
 
         let command_buffers = Self::create_command_buffers(&base.device, cmd_pool);
         let (image_available_semaphores, render_finsih_semaphores, in_flight_fences) =
@@ -144,10 +128,6 @@ impl VulkanRender {
 
             uniform_buffers,
             uniform_buffers_mapped,
-
-            ui_descriptor_pool,
-            ui_descriptor_sets,
-            ui_descriptor_set_layout,
 
             command_buffers,
             image_available_semaphores,
@@ -172,15 +152,15 @@ impl VulkanRender {
 
     pub fn recreate_swapchain(&mut self, new_size: PhysicalSize<u32>) {
         self.window_size = new_size;
-        
+
         #[cfg(not(target_os = "android"))]
         if new_size.width == 0 || new_size.height == 0 {
             return;
         }
-        
+
         unsafe { self.base.device.device_wait_idle().unwrap_unchecked() };
         self.depth_image.destroy(&self.base.device);
-        
+
         self.swapchain.update_caps(&self.base);
         let extend = self.swapchain.capabilities.current_extent;
 
@@ -491,11 +471,13 @@ impl VulkanRender {
                 .begin_command_buffer(command_buffer, &begin_info)
                 .unwrap();
 
-            self.ui_state.borrow_mut().update(&self.base, command_buffer);
-            
+            self.ui_state
+                .borrow_mut()
+                .update(&self.base, command_buffer);
+
             device.cmd_set_scissor(command_buffer, 0, &[scissor]);
             device.cmd_set_viewport(command_buffer, 0, &[view_port]);
-            
+
             device.cmd_begin_render_pass(
                 command_buffer,
                 &render_pass_info,
@@ -504,7 +486,6 @@ impl VulkanRender {
             self.ui_state.borrow_mut().draw(
                 device,
                 command_buffer,
-                self.ui_descriptor_sets[self.current_frame],
             );
             device.cmd_end_render_pass(command_buffer);
 
@@ -736,10 +717,8 @@ impl VulkanRender {
             }
 
             self.ui_state.borrow_mut().destroy(device);
-            device.destroy_descriptor_set_layout(self.ui_descriptor_set_layout, None);
             device.destroy_command_pool(self.cmd_pool, None);
             device.destroy_command_pool(self.single_time_cmd_pool, None);
-            device.destroy_descriptor_pool(self.ui_descriptor_pool, None);
             device.destroy_render_pass(self.render_pass, None);
             self.swapchain.destroy(device);
             device.destroy_sampler(self.texture_sampler, None);
@@ -752,11 +731,11 @@ impl VulkanRender {
     }
 }
 
-fn create_ui_descriptor_set_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
+fn _create_ui_descriptor_set_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
     let ubo_layout_binding = vk::DescriptorSetLayoutBinding {
         binding: 0,
-        descriptor_count: 1,
         descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
+        descriptor_count: 1,
         stage_flags: ShaderStageFlags::VERTEX,
         ..Default::default()
     };
@@ -764,7 +743,7 @@ fn create_ui_descriptor_set_layout(device: &ash::Device) -> vk::DescriptorSetLay
     let sampler_layout_binding = vk::DescriptorSetLayoutBinding {
         binding: 1,
         descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-        descriptor_count: 2,
+        descriptor_count: 1,
         stage_flags: ShaderStageFlags::FRAGMENT,
         ..Default::default()
     };
@@ -784,29 +763,7 @@ fn create_ui_descriptor_set_layout(device: &ash::Device) -> vk::DescriptorSetLay
     }
 }
 
-fn create_ui_descriptor_pool(device: &ash::Device) -> vk::DescriptorPool {
-    let pool_sizes = [
-        vk::DescriptorPoolSize {
-            ty: vk::DescriptorType::UNIFORM_BUFFER,
-            descriptor_count: MFIF as _,
-        },
-        vk::DescriptorPoolSize {
-            ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-            descriptor_count: MFIF as u32 * 3,
-        },
-    ];
-
-    let pool_info = vk::DescriptorPoolCreateInfo {
-        pool_size_count: pool_sizes.len() as _,
-        p_pool_sizes: pool_sizes.as_ptr(),
-        max_sets: MFIF as _,
-        ..Default::default()
-    };
-
-    unsafe { device.create_descriptor_pool(&pool_info, None).unwrap() }
-}
-
-fn create_descriptor_sets(
+fn _create_descriptor_sets(
     device: &ash::Device,
     descriptor_pool: vk::DescriptorPool,
     descriptor_set_layout: vk::DescriptorSetLayout,
