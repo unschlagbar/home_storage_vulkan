@@ -73,8 +73,8 @@ impl Explorer {
                         color: RGBA::rgb(30, 30, 30),
                         width: Fill,
                         height: Fill,
-                        border: [1.0; 4],
-                        border_color: RGBA::rgb(100, 100, 100),
+                        border: [0, 1, 0, 0],
+                        border_color: RGBA::rgb(90, 90, 90),
                         padding: OutArea::new(2.0),
                         ..Default::default()
                     },

@@ -4,27 +4,20 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 view_proj;
 } ubo;
 
-layout(location = 0) in float x;
-layout(location = 1) in float y;
-layout(location = 2) in float width;
-layout(location = 3) in float height;
-layout(location = 4) in uint uvStart;
-layout(location = 5) in uint uvEnd;
-layout(location = 6) in float z_index;
+layout(location = 0) in vec2 pos;
+layout(location = 1) in vec2 size;
+layout(location = 2) in uint uvStart;
+layout(location = 3) in uint uvSize;
+layout(location = 4) in float z_index;
 
-layout(location = 0) out vec2 fragTexCoord;
-layout(location = 1) out float fragWidth;
-layout(location = 2) out float fragHeight;
-layout(location = 3) out uint fragUvStart;
-layout(location = 4) out uint fragUvEnd;
+layout(location = 0) out vec2 fragUv;
 
 void main() {
     vec2 uv = vec2(((gl_VertexIndex << 1) & 2) >> 1, (gl_VertexIndex & 2) >> 1);
-    gl_Position = ubo.view_proj * vec4(vec2(x, y) + vec2(width, height) * uv, -z_index, 1.0);
+    gl_Position = ubo.view_proj * vec4(pos + size * uv, z_index, 1.0);
+
+    vec2 uv_start = vec2(uvStart & 0xffff, (uvStart >> 16) & 0xffff);
+    vec2 uv_size = vec2(uvSize & 0xffff, (uvSize >> 16) & 0xffff);
     
-    fragTexCoord = uv;
-    fragWidth = width;
-    fragHeight = height;
-    fragUvStart = uvStart;
-    fragUvEnd = uvEnd;
+    fragUv = mix(uv_start, uv_start + uv_size, uv);
 }

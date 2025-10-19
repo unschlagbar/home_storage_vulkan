@@ -483,10 +483,7 @@ impl VulkanRender {
                 &render_pass_info,
                 vk::SubpassContents::INLINE,
             );
-            self.ui_state.borrow_mut().draw(
-                device,
-                command_buffer,
-            );
+            self.ui_state.borrow_mut().draw(device, command_buffer);
             device.cmd_end_render_pass(command_buffer);
 
             device.end_command_buffer(command_buffer).unwrap();
@@ -535,8 +532,8 @@ impl VulkanRender {
             self.window_size.width as _,
             0.0,
             self.window_size.height as _,
-            -1.0,
             1.0,
+            -1.0,
         );
 
         for uniform_buffer in self.uniform_buffers_mapped {
@@ -683,8 +680,8 @@ impl VulkanRender {
             extent,
             Format::D16_UNORM,
             vk::ImageTiling::OPTIMAL,
-            ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
-            MemoryPropertyFlags::DEVICE_LOCAL,
+            ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | ImageUsageFlags::TRANSIENT_ATTACHMENT,
+            MemoryPropertyFlags::DEVICE_LOCAL | if cfg!(target_os = "android") { MemoryPropertyFlags::LAZILY_ALLOCATED } else { MemoryPropertyFlags::empty() },
         );
         let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
         depth_image.trasition_layout(
@@ -700,7 +697,7 @@ impl VulkanRender {
     pub fn destroy(&mut self) {
         unsafe {
             let device = &self.base.device;
-            device.device_wait_idle().unwrap_unchecked();
+            device.device_wait_idle().unwrap();
             #[cfg(debug_assertions)]
             self.base
                 .debug_utils
