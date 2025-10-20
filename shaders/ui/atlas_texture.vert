@@ -16,8 +16,8 @@ void main() {
     vec2 uv = vec2(((gl_VertexIndex << 1) & 2) >> 1, (gl_VertexIndex & 2) >> 1);
     gl_Position = ubo.view_proj * vec4(pos + size * uv, z_index, 1.0);
 
-    vec2 uv_start = vec2(uvStart & 0xffff, (uvStart >> 16) & 0xffff);
-    vec2 uv_size = vec2(uvSize & 0xffff, (uvSize >> 16) & 0xffff);
+    vec2 uv_start = vec2(uvStart & 0xffff, uvStart >> 16);
+    vec2 uv_size = vec2(uvSize & 0xffff, uvSize >> 16);
     
     fragUv = mix(uv_start, uv_start + uv_size, uv);
 }

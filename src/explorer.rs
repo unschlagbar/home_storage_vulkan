@@ -1,7 +1,7 @@
 use std::env;
 use std::{cell::RefCell, fs, path::PathBuf, process::Command, rc::Rc};
 
-use iron_oxide::ui::{Absolute, Align, ScrollPanel, Ticking, TypeConst};
+use iron_oxide::ui::{Absolute, Align, Image, ScrollPanel, Ticking, TypeConst};
 use iron_oxide::{
     graphics::formats::RGBA,
     ui::{
@@ -52,7 +52,7 @@ impl Explorer {
                 .unwrap();
 
             //Back Button
-            ui.add_child_to(
+            let back_button = ui.add_child_to(
                 Button {
                     color: RGBA::rgb(20, 20, 20),
                     width: Px(40.0),
@@ -60,11 +60,21 @@ impl Explorer {
                     margin: OutArea::new(3.0),
                     callback: FnPtr::new(on_click),
                     message: GO_BACK,
-                    childs: vec![],
                     ..Default::default()
                 },
                 "back",
                 nav_bar,
+            ).unwrap();
+
+            ui.add_child_to(
+                Image {
+                    atlas_index: 1,
+                            max_width: Undefined,
+                            max_height: Undefined,
+                            stretch: false
+                    },
+                "back_image",
+                back_button,
             );
 
             let content = ui
