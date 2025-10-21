@@ -1,5 +1,7 @@
 //#![windows_subsystem = "windows"]
 
+include!(concat!(env!("OUT_DIR"), "/gen_icons.rs"));
+
 mod app;
 mod explorer;
 mod vulkan_render;

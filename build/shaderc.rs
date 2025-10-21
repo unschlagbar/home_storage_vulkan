@@ -12,22 +12,20 @@ const GLSLC: &str = "/Bin/glslc.exe";
 #[cfg(not(target_os = "windows"))]
 const GLSLC: &str = "/bin/glslc";
 
-fn main() -> Result<(), Error> {
+pub fn build() {
     println!("cargo:rerun-if-changed={SHADER_DIR}");
 
     let shader_compiler = match env::var("VULKAN_SDK") {
         Ok(vulkan_sdk) => vulkan_sdk + GLSLC,
         Err(_) => {
             println!("cargo::warning=Vulkan SDK env variable not set");
-            return Ok(());
+            return;
         }
     };
 
-    for shader_path in get_shader_files(SHADER_DIR)? {
-        compile_shader(&shader_path, &shader_compiler)?;
+    for shader_path in get_shader_files(SHADER_DIR).unwrap() {
+        compile_shader(&shader_path, &shader_compiler).unwrap();
     }
-
-    Ok(())
 }
 
 fn get_shader_files(dir: &str) -> Result<Vec<PathBuf>, Error> {

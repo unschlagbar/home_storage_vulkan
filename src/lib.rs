@@ -1,6 +1,9 @@
 #![cfg(target_os = "android")]
 
+include!(concat!(env!("OUT_DIR"), "/gen_icons.rs"));
+
 mod app;
+mod assets;
 mod explorer;
 mod vulkan_render;
 mod android {

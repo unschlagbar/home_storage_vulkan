@@ -10,6 +10,8 @@ use iron_oxide::{
     },
 };
 
+use crate::Icon;
+
 const OPEN: u16 = 1;
 const ENTRY_ACTION: u16 = 2;
 const GO_BACK: u16 = 3;
@@ -71,7 +73,7 @@ impl Explorer {
 
             ui.add_child_to(
                 Image {
-                    atlas_index: 3,
+                    atlas_index: Icon::Back as u32,
                     max_width: Undefined,
                     max_height: Undefined,
                     stretch: false,
@@ -130,30 +132,51 @@ impl Explorer {
                 for entry in entries {
                     let entry = entry.unwrap();
                     let name = entry.file_name().into_string().unwrap();
+                    let extention = name.split('.').last().unwrap_or_default();
 
-                    if name.starts_with('.')
-                        || entry
-                            .path()
-                            .extension()
-                            .unwrap_or_default()
-                            .to_str()
-                            .unwrap_or_default()
-                            == "ini"
-                    {
+                    if name.starts_with('.') || extention == "ini" {
                         continue;
                     }
 
                     is_empty = false;
 
+                    let (el_name, icon) = if entry.path().is_dir() {
+                        ("folder", Icon::Folder as u32)
+                    } else {
+                        let icon = match extention {
+                            "txt" => Icon::TxtFile,
+                            "rs" => Icon::RustFile,
+                            _ => Icon::TxtFile,
+                        } as u32;
+                        ("file", icon)
+                    };
+
+                    let image = Container {
+                        height: Relative(1.0),
+                        width: RelativeHeight(1.0),
+                        margin: OutArea::from(&[0.0, 0.0, 6.0, 0.0]),
+                        color: RGBA::TRANSPARENT,
+                        padding: OutArea::new(2.0),
+                        childs: vec![
+                            Image {
+                                atlas_index: icon,
+                                ..Default::default()
+                            }
+                            .wrap("", &ui),
+                        ],
+                        ..Default::default()
+                    };
+
                     let child = Button {
                         color: RGBA::ZERO,
                         height: Px(30.0),
                         width: Relative(1.0),
-                        padding: OutArea::horizontal(Px(10.0)),
+                        padding: OutArea::horizontal(Px(2.0)),
                         corner: [Px(5.0); 4],
                         callback: FnPtr::new(on_click),
                         message: OPEN,
                         childs: vec![
+                            image.wrap("", &ui),
                             Text {
                                 text: name,
                                 ..Default::default()
@@ -162,15 +185,8 @@ impl Explorer {
                         ],
                         ..Default::default()
                     };
-                    ui.add_child_to(
-                        child,
-                        if entry.path().is_dir() {
-                            "folder"
-                        } else {
-                            "file"
-                        },
-                        self.content_window,
-                    );
+
+                    ui.add_child_to(child, el_name, self.content_window);
                 }
 
                 if is_empty {
@@ -235,7 +251,7 @@ impl Explorer {
                         {
                             let mut ui = self.ui.borrow_mut();
                             let element = ui.get_element(event.element_id).unwrap();
-                            let text = element.get_text().unwrap();
+                            let text = element.get_text_at_pos(1).unwrap();
                             self.path.push(text);
                         };
                         self.display_path();
@@ -254,7 +270,7 @@ impl Explorer {
                         let mut ui = self.ui.borrow_mut();
                         let selected = ui.get_element(self.hovered_element).unwrap();
                         if selected.name == "folder" {
-                            let text = selected.get_text().unwrap();
+                            let text = selected.get_text_at_pos(1).unwrap();
                             self.path.push(text);
                             drop(ui);
                             self.display_path();
@@ -276,7 +292,7 @@ impl Explorer {
         let path = {
             let mut ui = self.ui.borrow_mut();
             let element = ui.get_element(clicked_id).unwrap();
-            let text = element.get_text().unwrap();
+            let text = element.get_text_at_pos(1).unwrap();
             self.path.join(text)
         };
 
