@@ -7,5 +7,5 @@ layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 outColor;  
 
 void main() {
-    outColor = vec4(textureLod(texSampler, uv, 0).rgba);
+    outColor = textureLod(texSampler, uv, 0);
 }

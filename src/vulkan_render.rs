@@ -681,7 +681,12 @@ impl VulkanRender {
             Format::D16_UNORM,
             vk::ImageTiling::OPTIMAL,
             ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | ImageUsageFlags::TRANSIENT_ATTACHMENT,
-            MemoryPropertyFlags::DEVICE_LOCAL | if cfg!(target_os = "android") { MemoryPropertyFlags::LAZILY_ALLOCATED } else { MemoryPropertyFlags::empty() },
+            MemoryPropertyFlags::DEVICE_LOCAL
+                | if cfg!(target_os = "android") {
+                    MemoryPropertyFlags::LAZILY_ALLOCATED
+                } else {
+                    MemoryPropertyFlags::empty()
+                },
         );
         let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
         depth_image.trasition_layout(

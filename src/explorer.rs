@@ -52,27 +52,30 @@ impl Explorer {
                 .unwrap();
 
             //Back Button
-            let back_button = ui.add_child_to(
-                Button {
-                    color: RGBA::rgb(20, 20, 20),
-                    width: Px(40.0),
-                    height: Px(40.0),
-                    margin: OutArea::new(3.0),
-                    callback: FnPtr::new(on_click),
-                    message: GO_BACK,
-                    ..Default::default()
-                },
-                "back",
-                nav_bar,
-            ).unwrap();
+            let back_button = ui
+                .add_child_to(
+                    Button {
+                        color: RGBA::rgb(20, 20, 20),
+                        width: Px(40.0),
+                        height: Px(40.0),
+                        margin: OutArea::new(3.0),
+                        padding: OutArea::new(2.0),
+                        callback: FnPtr::new(on_click),
+                        message: GO_BACK,
+                        ..Default::default()
+                    },
+                    "back",
+                    nav_bar,
+                )
+                .unwrap();
 
             ui.add_child_to(
                 Image {
-                    atlas_index: 1,
-                            max_width: Undefined,
-                            max_height: Undefined,
-                            stretch: false
-                    },
+                    atlas_index: 3,
+                    max_width: Undefined,
+                    max_height: Undefined,
+                    stretch: false,
+                },
                 "back_image",
                 back_button,
             );
@@ -421,13 +424,12 @@ fn on_click(context: CallContext) {
         }
         ButtonState::Disabled => unreachable!(),
     }
-    context.ui.dirty = DirtyFlags::Color;
+    context.element.set_changed();
 }
 
 fn tick_error(context: CallContext) {
     let this: &mut Ticking<Absolute> = context.element.downcast_mut();
     if this.last_tick.elapsed().as_secs_f32() > 1.0 {
-        context.element.remove_self(context.ui);
-        context.ui.dirty = DirtyFlags::Resize;
+        context.element.remove_self();
     }
 }
