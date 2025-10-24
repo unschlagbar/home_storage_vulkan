@@ -101,8 +101,8 @@ impl VulkanRender {
         staging_buf.destroy(&base.device);
         staging_buf2.destroy(&base.device);
 
-        swapchain.update_caps(&base);
-        swapchain.recreate(&base, window_size, render_pass, depth_image.view);
+        swapchain.update_caps(&base, window_size);
+        swapchain.recreate(&base, render_pass, depth_image.view);
 
         texture_image.create_view(&base, vk::ImageAspectFlags::COLOR);
         font_atlas.create_view(&base, vk::ImageAspectFlags::COLOR);
@@ -161,7 +161,7 @@ impl VulkanRender {
         unsafe { self.base.device.device_wait_idle().unwrap_unchecked() };
         self.depth_image.destroy(&self.base.device);
 
-        self.swapchain.update_caps(&self.base);
+        self.swapchain.update_caps(&self.base, new_size);
         let extend = self.swapchain.capabilities.current_extent;
 
         self.depth_image = Self::create_depth_resources(
@@ -176,7 +176,6 @@ impl VulkanRender {
 
         self.swapchain.recreate(
             &self.base,
-            new_size,
             self.render_pass,
             self.depth_image.view,
         );
