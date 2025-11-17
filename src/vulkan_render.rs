@@ -46,7 +46,6 @@ pub struct VulkanRender {
     in_flight_fences: [vk::Fence; MFIF],
     pub current_frame: usize,
 
-    texture_image: graphics::Image,
     pub texture_sampler: vk::Sampler,
 
     pub font_atlas: graphics::Image,
@@ -94,17 +93,14 @@ impl VulkanRender {
             },
         );
         let cmd_buf = SinlgeTimeCommands::begin(&base, single_time_cmd_pool);
-        let (mut texture_image, mut staging_buf) = Self::create_texture_image(&base, cmd_buf);
-        let (mut font_atlas, mut staging_buf2) = Self::create_font_atlas(&base, cmd_buf);
+        let (mut font_atlas, mut staging_buf) = Self::create_font_atlas(&base, cmd_buf);
         SinlgeTimeCommands::end(&base, single_time_cmd_pool, cmd_buf);
 
         staging_buf.destroy(&base.device);
-        staging_buf2.destroy(&base.device);
 
         swapchain.update_caps(&base, window_size);
         swapchain.recreate(&base, render_pass, depth_image.view);
 
-        texture_image.create_view(&base, vk::ImageAspectFlags::COLOR);
         font_atlas.create_view(&base, vk::ImageAspectFlags::COLOR);
 
         let (uniform_buffers, uniform_buffers_mapped) = create_uniform_buffers(&base);
@@ -135,7 +131,6 @@ impl VulkanRender {
             in_flight_fences,
 
             current_frame: 0,
-            texture_image,
 
             font_atlas,
 
@@ -537,61 +532,6 @@ impl VulkanRender {
         }
     }
 
-    fn create_texture_image(
-        base: &VkBase,
-        cmd_buf: vk::CommandBuffer,
-    ) -> (graphics::Image, Buffer) {
-        let decoder = png::Decoder::new(std::io::Cursor::new(include_bytes!(
-            "../textures/texture.png"
-        )));
-
-        let mut reader = decoder.read_info().unwrap();
-        let mut buf = vec![0; reader.output_buffer_size().unwrap()];
-        let info = reader.next_frame(&mut buf).unwrap();
-        let width = info.width;
-        let height = info.height;
-        let image_size = buf.len() as u64;
-        let extent = Extent3D {
-            width,
-            height,
-            depth: 1,
-        };
-
-        let staging_buffer = Buffer::create(
-            base,
-            image_size,
-            vk::BufferUsageFlags::TRANSFER_SRC,
-            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
-        );
-
-        let mapped_memory = staging_buffer.map_memory(&base.device, image_size, 0);
-        unsafe {
-            copy_nonoverlapping(buf.as_ptr(), mapped_memory, image_size as usize);
-        };
-        staging_buffer.unmap_memory(&base.device);
-
-        let mut texture_image = graphics::Image::create(
-            base,
-            extent,
-            Format::R8G8B8A8_SRGB,
-            vk::ImageTiling::OPTIMAL,
-            ImageUsageFlags::TRANSFER_DST | ImageUsageFlags::SAMPLED,
-            MemoryPropertyFlags::DEVICE_LOCAL,
-        );
-
-        texture_image.trasition_layout(base, cmd_buf, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
-        texture_image.copy_from_buffer(
-            base,
-            cmd_buf,
-            &staging_buffer,
-            extent,
-            vk::ImageAspectFlags::COLOR,
-        );
-        texture_image.trasition_layout(base, cmd_buf, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
-
-        (texture_image, staging_buffer)
-    }
-
     fn create_font_atlas(base: &VkBase, cmd_buf: vk::CommandBuffer) -> (graphics::Image, Buffer) {
         let decoder =
             png::Decoder::new(std::io::Cursor::new(include_bytes!("../font/default8.png")));
@@ -721,7 +661,6 @@ impl VulkanRender {
             self.swapchain.destroy(device);
             device.destroy_sampler(self.texture_sampler, None);
             self.depth_image.destroy(device);
-            self.texture_image.destroy(device);
             self.font_atlas.destroy(device);
             device.destroy_device(None);
             self.base.instance.destroy_instance(None);

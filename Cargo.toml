@@ -20,7 +20,7 @@ strip = true
 opt-level = 0
 
 [dependencies]
-iron_oxide = { path = "../iron_oxide", features = ["graphics"]}
+iron_oxide = { path = "../iron_oxide", features = ["vulkan"]}
 ash = { version = "0.38.0" }
 ash-window = "0.13.0"
 cgmath = "0.18.0"

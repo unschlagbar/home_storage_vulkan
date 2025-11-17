@@ -3,7 +3,7 @@
 use crate::{explorer::Explorer, vulkan_render::VulkanRender};
 use iron_oxide::{
     primitives::Vec2,
-    ui::{DirtyFlags, UiEvent, UiState, test::build_text_test},
+    ui::{DirtyFlags, UiEvent, UiState},
 };
 use std::{
     cell::RefCell,
@@ -49,13 +49,10 @@ impl App {
     pub fn run() -> Self {
         let renderer = None;
 
-        let wrong_ui = Rc::new(RefCell::new(UiState::create(true)));
-        let mut explorer = Explorer::new(wrong_ui.clone());
+        let ui = Rc::new(RefCell::new(UiState::create(true)));
+        let mut explorer = Explorer::new(ui.clone());
 
         explorer.display_path();
-
-        let ui = Rc::new(RefCell::new(UiState::create(true)));
-        build_text_test(ui.clone());
 
         Self {
             window: None,

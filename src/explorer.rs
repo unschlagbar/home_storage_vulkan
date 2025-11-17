@@ -1,7 +1,7 @@
 use std::env;
 use std::{cell::RefCell, fs, path::PathBuf, process::Command, rc::Rc};
 
-use iron_oxide::ui::{Absolute, Align, Image, ScrollPanel, Ticking, TypeConst};
+use iron_oxide::ui::{Absolute, Align, FlexDirection, Image, ScrollPanel, Ticking, TypeConst};
 use iron_oxide::{
     graphics::formats::RGBA,
     ui::{
@@ -44,7 +44,8 @@ impl Explorer {
                 .add_child_to(
                     Container {
                         color: RGBA::rgb(20, 20, 20),
-                        width: Relative(1.0),
+                        // TODO Fix relative(1.0)
+                        width: Fill,
                         height: Px(40.0),
                         ..Default::default()
                     },
@@ -58,8 +59,8 @@ impl Explorer {
                 .add_child_to(
                     Button {
                         color: RGBA::rgb(20, 20, 20),
-                        width: Px(40.0),
-                        height: Px(40.0),
+                        width: Px(34.0),
+                        height: Px(34.0),
                         margin: OutArea::new(3.0),
                         padding: OutArea::new(2.0),
                         callback: FnPtr::new(on_click),
@@ -168,7 +169,8 @@ impl Explorer {
                     let child = Button {
                         color: RGBA::ZERO,
                         height: Px(30.0),
-                        width: Relative(1.0),
+                        width: Fill,
+                        flex_direction: FlexDirection::Horizontal,
                         padding: OutArea::horizontal(Px(2.0)),
                         corner: [Px(5.0); 4],
                         callback: FnPtr::new(on_click),
@@ -177,6 +179,7 @@ impl Explorer {
                             image.wrap("", &ui),
                             Text {
                                 text: name,
+                                align: Align::Left,
                                 ..Default::default()
                             }
                             .wrap("", &ui),
@@ -195,7 +198,7 @@ impl Explorer {
                         padding: OutArea::horizontal(Px(2.0)),
                         childs: vec![
                             Text {
-                                text: "This Folder \n is Empty".to_string(),
+                                text: "This Folder\nis Empty".to_string(),
                                 color: RGBA::rgb(130, 130, 130),
                                 align: Align::Center,
                                 ..Default::default()
