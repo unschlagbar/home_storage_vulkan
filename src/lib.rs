@@ -3,9 +3,11 @@
 include!(concat!(env!("OUT_DIR"), "/gen_icons.rs"));
 
 mod app;
+#[rustfmt::skip]
 mod assets;
 mod explorer;
 mod vulkan_render;
+
 mod android {
     use crate::game::app::App;
     use activity::AndroidApp;

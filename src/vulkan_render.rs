@@ -174,11 +174,8 @@ impl VulkanRender {
             },
         );
 
-        self.swapchain.recreate(
-            &self.base,
-            self.render_pass,
-            self.depth_image.view,
-        );
+        self.swapchain
+            .recreate(&self.base, self.render_pass, self.depth_image.view);
         self.update_ui_uniform_buffer();
 
         self.ui_state.borrow_mut().resize(new_size.into());

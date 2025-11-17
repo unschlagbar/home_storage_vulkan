@@ -3,7 +3,7 @@
 use crate::{explorer::Explorer, vulkan_render::VulkanRender};
 use iron_oxide::{
     primitives::Vec2,
-    ui::{DirtyFlags, UiEvent, UiState},
+    ui::{DirtyFlags, UiEvent, UiState, test::build_text_test},
 };
 use std::{
     cell::RefCell,
@@ -24,7 +24,7 @@ use winit::{
 use winit::platform::windows::{CornerPreference, WindowAttributesExtWindows};
 
 const APP_NAME: &str = "Home Server";
-const WIDTH: u32 = 1280;
+const WIDTH: u32 = 1080;
 const HEIGHT: u32 = 720;
 
 pub const VSYNC: bool = true;
@@ -49,10 +49,13 @@ impl App {
     pub fn run() -> Self {
         let renderer = None;
 
-        let ui = Rc::new(RefCell::new(UiState::create(true)));
-        let mut explorer = Explorer::new(ui.clone());
+        let wrong_ui = Rc::new(RefCell::new(UiState::create(true)));
+        let mut explorer = Explorer::new(wrong_ui.clone());
 
         explorer.display_path();
+
+        let ui = Rc::new(RefCell::new(UiState::create(true)));
+        build_text_test(ui.clone());
 
         Self {
             window: None,
@@ -301,7 +304,7 @@ impl ApplicationHandler for App {
         );
 
         let font_shaders = (
-            include_bytes!("../spv/bitmap.vert.spv").as_ref(),
+            include_bytes!("../spv/atlas_texture.vert.spv").as_ref(),
             include_bytes!("../spv/bitmap.frag.spv").as_ref(),
         );
 

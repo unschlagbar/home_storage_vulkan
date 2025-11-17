@@ -74,9 +74,7 @@ impl Explorer {
             ui.add_child_to(
                 Image {
                     atlas_index: Icon::Back as u32,
-                    max_width: Undefined,
-                    max_height: Undefined,
-                    stretch: false,
+                    ..Default::default()
                 },
                 "back_image",
                 back_button,
@@ -132,7 +130,7 @@ impl Explorer {
                 for entry in entries {
                     let entry = entry.unwrap();
                     let name = entry.file_name().into_string().unwrap();
-                    let extention = name.split('.').last().unwrap_or_default();
+                    let extention = name.split('.').next_back().unwrap_or_default();
 
                     if name.starts_with('.') || extention == "ini" {
                         continue;
@@ -197,8 +195,8 @@ impl Explorer {
                         padding: OutArea::horizontal(Px(2.0)),
                         childs: vec![
                             Text {
-                                text: "This Folder is Empty".to_string(),
-                                color: RGBA::RED,
+                                text: "This Folder \n is Empty".to_string(),
+                                color: RGBA::rgb(130, 130, 130),
                                 align: Align::Center,
                                 ..Default::default()
                             }
@@ -216,7 +214,7 @@ impl Explorer {
 
                 let e_message = Ticking {
                     inner: Absolute {
-                        color: RGBA::rgb(255, 255, 255),
+                        color: RGBA::WHITE,
                         x: Px(ui.cursor_pos.x),
                         y: Px(ui.cursor_pos.y),
                         border: [1; 4],

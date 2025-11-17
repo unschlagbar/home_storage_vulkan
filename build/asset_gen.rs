@@ -13,13 +13,12 @@ pub fn build() {
     for entry in fs::read_dir(icon_dir).unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
-        if let Some(ext) = path.extension() {
-            if ext == "png" {
-                if let Some(stem) = path.file_stem() {
-                    let name = stem.to_string_lossy();
-                    icons.push(name.to_string());
-                }
-            }
+        if let Some(ext) = path.extension()
+            && ext == "png"
+            && let Some(stem) = path.file_stem()
+        {
+            let name = stem.to_string_lossy();
+            icons.push(name.to_string());
         }
     }
 
