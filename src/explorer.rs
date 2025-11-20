@@ -33,8 +33,8 @@ impl Explorer {
             let root = ui.add_element(
                 Container {
                     color: RGBA::ZERO,
-                    width: Relative(1.0),
-                    height: Relative(1.0),
+                    width: Fill,
+                    height: Fill,
                     ..Default::default()
                 },
                 "root",
@@ -43,7 +43,7 @@ impl Explorer {
             let nav_bar = ui
                 .add_child_to(
                     Container {
-                        color: RGBA::rgb(20, 20, 20),
+                        color: RGBA::grey(20),
                         // TODO Fix relative(1.0)
                         width: Fill,
                         height: Px(40.0),
@@ -58,7 +58,7 @@ impl Explorer {
             let back_button = ui
                 .add_child_to(
                     Button {
-                        color: RGBA::rgb(20, 20, 20),
+                        color: RGBA::grey(20),
                         width: Px(34.0),
                         height: Px(34.0),
                         margin: OutArea::new(3.0),
@@ -84,11 +84,11 @@ impl Explorer {
             let content = ui
                 .add_child_to(
                     Container {
-                        color: RGBA::rgb(30, 30, 30),
+                        color: RGBA::grey(30),
                         width: Fill,
                         height: Fill,
                         border: [0, 1, 0, 0],
-                        border_color: RGBA::rgb(90, 90, 90),
+                        border_color: RGBA::grey(90),
                         padding: OutArea::new(2.0),
                         ..Default::default()
                     },
@@ -199,7 +199,7 @@ impl Explorer {
                         childs: vec![
                             Text {
                                 text: "This Folder\nis Empty".to_string(),
-                                color: RGBA::rgb(130, 130, 130),
+                                color: RGBA::grey(130),
                                 align: Align::Center,
                                 ..Default::default()
                             }
@@ -329,15 +329,12 @@ impl Explorer {
                     y,
                     width: Px(200.0),
                     height: Auto,
-                    color: RGBA::rgb(50, 50, 50),
-                    border_color: RGBA::GREEN,
-                    border: [1; 4],
+                    padding: OutArea::new(2.0),
+                    color: RGBA::grey(50),
                     corner: [Px(7.0); 4],
                     childs: vec![
                         Button {
-                            margin: OutArea::new(2.0),
-                            // TODO Make fill work!
-                            width: Relative(1.0),
+                            width: Fill,
                             height: Px(30.0),
                             color: RGBA::ZERO,
                             border_color: RGBA::BLUE,
@@ -357,9 +354,7 @@ impl Explorer {
                         }
                         .wrap("open", &ui),
                         Button {
-                            margin: OutArea::new(2.0),
-                            // TODO Make fill work!
-                            width: Relative(1.0),
+                            width: Fill,
                             height: Px(30.0),
                             color: RGBA::ZERO,
                             border_color: RGBA::BLUE,
@@ -379,8 +374,6 @@ impl Explorer {
                         }
                         .wrap("rename", &ui),
                         Button {
-                            margin: OutArea::new(2.0),
-                            // TODO Make fill work!
                             width: Relative(1.0),
                             height: Px(30.0),
                             color: RGBA::ZERO,
@@ -434,10 +427,10 @@ fn on_click(context: CallContext) {
             button.color = RGBA::ZERO;
         }
         ButtonState::Hovered => {
-            button.color = RGBA::rgb(40, 40, 40);
+            button.color = RGBA::grey(40);
         }
         ButtonState::Pressed => {
-            button.color = RGBA::rgb(60, 60, 60);
+            button.color = RGBA::grey(60);
         }
         ButtonState::Disabled => unreachable!(),
     }
