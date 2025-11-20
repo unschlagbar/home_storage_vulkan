@@ -151,11 +151,11 @@ impl Explorer {
                     };
 
                     let image = Container {
-                        height: Relative(1.0),
-                        width: RelativeHeight(1.0),
+                        height: Px(30.0),
+                        width: Px(30.0),
                         margin: OutArea::from(&[0.0, 0.0, 6.0, 0.0]),
                         color: RGBA::TRANSPARENT,
-                        padding: OutArea::new(2.0),
+                        padding: OutArea::new(3.0),
                         childs: vec![
                             Image {
                                 atlas_index: icon,
@@ -168,7 +168,7 @@ impl Explorer {
 
                     let child = Button {
                         color: RGBA::ZERO,
-                        height: Px(30.0),
+                        height: Auto,
                         width: Fill,
                         flex_direction: FlexDirection::Horizontal,
                         padding: OutArea::horizontal(Px(2.0)),
@@ -178,6 +178,7 @@ impl Explorer {
                         childs: vec![
                             image.wrap("", &ui),
                             Text {
+                                color: RGBA::grey(220),
                                 text: name,
                                 align: Align::Left,
                                 ..Default::default()
@@ -217,7 +218,7 @@ impl Explorer {
 
                 let e_message = Ticking {
                     inner: Absolute {
-                        color: RGBA::WHITE,
+                        color: RGBA::grey(50),
                         x: Px(ui.cursor_pos.x),
                         y: Px(ui.cursor_pos.y),
                         border: [1; 4],
@@ -345,7 +346,7 @@ impl Explorer {
                             childs: vec![
                                 Text {
                                     text: "Öffnen".to_string(),
-                                    color: RGBA::WHITE,
+                                    color: RGBA::grey(220),
                                     ..Default::default()
                                 }
                                 .wrap("", &ui),
@@ -365,7 +366,8 @@ impl Explorer {
                             childs: vec![
                                 Text {
                                     text: "Umbennenen".to_string(),
-                                    color: RGBA::WHITE,
+                                    color: RGBA::grey(220),
+
                                     ..Default::default()
                                 }
                                 .wrap("", &ui),
@@ -385,7 +387,8 @@ impl Explorer {
                             childs: vec![
                                 Text {
                                     text: "Löschen".to_string(),
-                                    color: RGBA::WHITE,
+                                    color: RGBA::grey(220),
+
                                     ..Default::default()
                                 }
                                 .wrap("", &ui),
