@@ -44,7 +44,6 @@ impl Explorer {
                 .add_child_to(
                     Container {
                         color: RGBA::grey(20),
-                        // TODO Fix relative(1.0)
                         width: Fill,
                         height: Px(40.0),
                         ..Default::default()
@@ -311,9 +310,7 @@ impl Explorer {
         .wait();
     }
 
-    pub fn right_click(&mut self) -> bool {
-        let mut ui = self.ui.borrow_mut();
-
+    pub fn right_click(&mut self, ui: &mut UiState) -> bool {
         if let Some(hovered) = ui.get_hovered() {
             if hovered.name == "file" || hovered.name == "folder" {
                 self.hovered_element = hovered.id;
@@ -409,9 +406,8 @@ impl Explorer {
         }
     }
 
-    pub fn mouse_click(&mut self) -> bool {
+    pub fn mouse_click(&mut self, ui: &mut UiState) -> bool {
         if self.tool_tip != u32::MAX {
-            let mut ui = self.ui.borrow_mut();
             ui.remove_element_by_id(self.tool_tip);
 
             self.tool_tip = u32::MAX;

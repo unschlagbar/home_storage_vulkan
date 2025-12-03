@@ -1,10 +1,7 @@
 #![allow(clippy::collapsible_match)]
 #![allow(clippy::single_match)]
 use crate::{explorer::Explorer, vulkan_render::VulkanRender};
-use iron_oxide::{
-    primitives::Vec2,
-    ui::{DirtyFlags, UiEvent, UiState},
-};
+use iron_oxide::ui::{DirtyFlags, EventResult, UiState};
 use std::{
     cell::RefCell,
     rc::Rc,
@@ -14,7 +11,7 @@ use std::{
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
-    event::{ElementState, MouseButton, TouchPhase, WindowEvent},
+    event::{ElementState, MouseButton, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow},
     keyboard::{KeyCode, PhysicalKey},
     window::{Theme, Window, WindowId},
@@ -38,9 +35,6 @@ pub struct App {
     pub explorer: Explorer,
     pub time: Instant,
 
-    pub cursor_pos: Vec2,
-    pub touch_id: u64,
-    pub dirty: bool,
     pub target_frame_time: f32,
 }
 
@@ -57,12 +51,9 @@ impl App {
         Self {
             window: None,
             renderer,
-            cursor_pos: Vec2::default(),
             time: Instant::now(),
             ui,
             explorer,
-            touch_id: 0,
-            dirty: false,
             target_frame_time: 1.0 / DEFAULT_FPS,
         }
     }
@@ -105,101 +96,44 @@ impl ApplicationHandler for App {
             return;
         };
 
+        let ui_event = {
+            let mut ui = self.ui.borrow_mut();
+    
+            match ui.window_event(&event, window) {
+                EventResult::New | EventResult::None => {
+                    if let WindowEvent::MouseInput {
+                        device_id: _,
+                        state,
+                        button,
+                    } = event
+                    {
+                        match button {
+                            MouseButton::Left => {
+                                if self.explorer.mouse_click(&mut ui) {
+                                    window.request_redraw();
+                                }
+                            }
+                            MouseButton::Right => {
+                                if state == ElementState::Pressed && self.explorer.right_click(&mut ui)
+                                {
+                                    window.request_redraw();
+                                }
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+                EventResult::Old => (),
+            }
+
+            ui.event.take()
+        };
+
+        if let Some(event) = ui_event {
+            self.explorer.proceed_event(event);
+        }
+
         match event {
-            WindowEvent::CursorMoved {
-                device_id: _,
-                position,
-            } => {
-                self.cursor_pos = position.into();
-
-                let result = {
-                    let mut ui = self.ui.borrow_mut();
-                    ui.update_cursor(self.cursor_pos, UiEvent::Move)
-                };
-
-                if result.is_new() {
-                    self.dirty = true;
-                    window.request_redraw();
-                } else if self.dirty && result.is_none() {
-                    window.request_redraw();
-                    self.dirty = false;
-                }
-            }
-            WindowEvent::CursorLeft { device_id: _ } => {
-                let result = {
-                    let mut ui = self.ui.borrow_mut();
-                    ui.update_cursor(Vec2::new(1000.0, 1000.0), UiEvent::Move)
-                };
-
-                if result.is_new() {
-                    self.dirty = true;
-                    window.request_redraw();
-                } else if self.dirty && result.is_none() {
-                    window.request_redraw();
-                    self.dirty = false;
-                }
-            }
-            WindowEvent::MouseWheel {
-                device_id: _,
-                delta,
-                phase: _,
-            } => {
-                let result = self
-                    .ui
-                    .borrow_mut()
-                    .update_cursor(self.cursor_pos, UiEvent::Scroll(delta));
-
-                if result.is_new() {
-                    self.dirty = true;
-                    window.request_redraw();
-                } else if self.dirty && result.is_none() {
-                    window.request_redraw();
-                    self.dirty = false;
-                }
-            }
-            WindowEvent::MouseInput {
-                device_id: _,
-                state,
-                button,
-            } => {
-                match button {
-                    MouseButton::Left => {
-                        let result = self
-                            .ui
-                            .borrow_mut()
-                            .update_cursor(self.cursor_pos, state.into());
-
-                        if result.is_new() {
-                            window.request_redraw();
-                        }
-                        if self.explorer.mouse_click() {
-                            window.request_redraw();
-                        }
-                    }
-                    MouseButton::Right => {
-                        //self.explorer.mouse_click();
-                        if state == ElementState::Pressed && self.explorer.right_click() {
-                            window.request_redraw();
-                        }
-                    }
-                    _ => (),
-                }
-            }
-            WindowEvent::Touch(touch) => {
-                let cursor_pos = touch.location.into();
-                match touch.phase {
-                    TouchPhase::Started => {
-                        if self.touch_id == 0 {
-                            self.touch_id = touch.id;
-                        }
-                    }
-                    TouchPhase::Moved => (),
-                    TouchPhase::Ended | TouchPhase::Cancelled => self.touch_id = 0,
-                }
-                self.ui
-                    .borrow_mut()
-                    .update_cursor(cursor_pos, touch.phase.into());
-            }
             WindowEvent::RedrawRequested => {
                 renderer.borrow_mut().draw_frame();
                 return;
@@ -238,15 +172,6 @@ impl ApplicationHandler for App {
             }
             WindowEvent::CloseRequested => event_loop.exit(),
             _ => (),
-        }
-
-        let ui_event = {
-            let mut ui = self.ui.borrow_mut();
-            ui.event.take()
-        };
-
-        if let Some(event) = ui_event {
-            self.explorer.proceed_event(event);
         }
     }
 
