@@ -1,7 +1,9 @@
 #![allow(clippy::collapsible_match)]
 #![allow(clippy::single_match)]
 use crate::{explorer::Explorer, vulkan_render::VulkanRender};
-use iron_oxide::ui::{DirtyFlags, EventResult, UiState};
+use iron_oxide::{
+    graphics::TextureAtlas, primitives::Vec2, ui::{DirtyFlags, UiEvent, UiState}
+};
 use std::{
     cell::RefCell,
     rc::Rc,
@@ -20,6 +22,9 @@ use winit::{
 #[cfg(target_os = "windows")]
 use winit::platform::windows::{CornerPreference, WindowAttributesExtWindows};
 
+#[cfg(target_os = "android")]
+use ndk::asset::AssetManager;
+
 const APP_NAME: &str = "Home Server";
 const WIDTH: u32 = 1080;
 const HEIGHT: u32 = 720;
@@ -32,6 +37,9 @@ pub struct App {
     pub renderer: Option<Rc<RefCell<VulkanRender>>>,
     pub ui: Rc<RefCell<UiState>>,
 
+    #[cfg(target_os = "android")]
+    pub assets: AssetManager,
+
     pub explorer: Explorer,
     pub time: Instant,
 
@@ -39,8 +47,8 @@ pub struct App {
 }
 
 impl App {
-    #[allow(unused)]
-    pub fn run() -> Self {
+    #[cfg(not(target_os = "android"))]
+    pub fn new() -> Self {
         let renderer = None;
 
         let ui = Rc::new(RefCell::new(UiState::create(true)));
@@ -53,6 +61,29 @@ impl App {
             renderer,
             time: Instant::now(),
             ui,
+            explorer,
+            target_frame_time: 1.0 / DEFAULT_FPS,
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn new(assets: AssetManager) -> Self {
+        let renderer = None;
+
+        let ui = Rc::new(RefCell::new(UiState::create(true)));
+        let mut explorer = Explorer::new(ui.clone());
+
+        explorer.display_path();
+
+        Self {
+            window: None,
+            renderer,
+            ui,
+
+            assets,
+
+            cursor_pos: Vec2::default(),
+            time: Instant::now(),
             explorer,
             target_frame_time: 1.0 / DEFAULT_FPS,
         }
@@ -235,11 +266,14 @@ impl ApplicationHandler for App {
             include_bytes!("../spv/atlas_texture.frag.spv").as_ref(),
         );
 
+        let mut texture_atlas = TextureAtlas::new((1024, 1024));
+        
+        texture_atlas.load_directory(&self.assets, "/textures", &renderer.base, renderer.cmd_pool);
         {
             let mut ui = self.ui.borrow_mut();
             ui.init_graphics(
                 &renderer.base,
-                renderer.single_time_cmd_pool,
+                texture_atlas,
                 renderer.window_size,
                 renderer.render_pass,
                 &renderer.uniform_buffers[0],

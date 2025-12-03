@@ -6,10 +6,6 @@ import com.google.androidgamesdk.GameActivity;
 
 public class MainActivity extends GameActivity {
 
-    static {
-        System.loadLibrary("main");
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -21,5 +17,7 @@ public class MainActivity extends GameActivity {
             | View.SYSTEM_UI_FLAG_FULLSCREEN
             | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         );
+
+        Rust.hi();
     }
 }
