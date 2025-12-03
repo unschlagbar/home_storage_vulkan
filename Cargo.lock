@@ -552,7 +552,6 @@ dependencies = [
  "ash",
  "ash-window",
  "cgmath",
- "ndk",
  "png",
  "rand",
  "winit",

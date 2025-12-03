@@ -2,7 +2,7 @@
 #![allow(clippy::single_match)]
 use crate::{explorer::Explorer, vulkan_render::VulkanRender};
 use iron_oxide::{
-    graphics::TextureAtlas, primitives::Vec2, ui::{DirtyFlags, UiEvent, UiState}
+    graphics::TextureAtlas, ui::{DirtyFlags, EventResult, UiEvent, UiState}
 };
 use std::{
     cell::RefCell,
