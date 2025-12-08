@@ -20,6 +20,7 @@ pub struct Explorer {
     pub content_window: u32,
     pub tool_tip: u32,
     pub hovered_element: u32,
+    pub selected_file: u32,
 
     pub path: PathBuf,
     pub ui: Rc<RefCell<UiState>>,
@@ -30,7 +31,7 @@ impl Explorer {
         let content_window = {
             let mut ui = ui.borrow_mut();
 
-            let root = ui.add_element(
+            let root = ui.add_child_to_root(
                 Container {
                     color: RGBA::ZERO,
                     width: Fill,
@@ -110,6 +111,7 @@ impl Explorer {
             content_window,
             tool_tip: u32::MAX,
             hovered_element: 0,
+            selected_file: 0,
             #[cfg(target_os = "windows")]
             path: env::var("USERPROFILE").ok().unwrap_or("C:/".into()).into(),
             #[cfg(not(target_os = "windows"))]
@@ -124,7 +126,7 @@ impl Explorer {
         match fs::read_dir(&self.path) {
             Ok(entries) => {
                 let content = ui.get_element(self.content_window).unwrap();
-                content.clear_childs();
+                content.get_mut(&mut ui).clear_childs();
 
                 let mut is_empty = true;
                 for entry in entries {
@@ -160,7 +162,7 @@ impl Explorer {
                                 atlas_index: icon,
                                 ..Default::default()
                             }
-                            .wrap("", &ui),
+                            .wrap(""),
                         ],
                         ..Default::default()
                     };
@@ -175,14 +177,14 @@ impl Explorer {
                         callback: FnPtr::new(on_click),
                         message: OPEN,
                         childs: vec![
-                            image.wrap("", &ui),
+                            image.wrap(""),
                             Text {
                                 color: RGBA::grey(220),
                                 text: name,
                                 align: Align::Left,
                                 ..Default::default()
                             }
-                            .wrap("", &ui),
+                            .wrap(""),
                         ],
                         ..Default::default()
                     };
@@ -203,7 +205,7 @@ impl Explorer {
                                 align: Align::Center,
                                 ..Default::default()
                             }
-                            .wrap("empty_msg", &ui),
+                            .wrap("empty_msg"),
                         ],
                         ..Default::default()
                     };
@@ -231,7 +233,7 @@ impl Explorer {
                                 color: RGBA::RED,
                                 ..Default::default()
                             }
-                            .wrap("", &ui),
+                            .wrap(""),
                         ],
                         ..Default::default()
                     },
@@ -239,7 +241,7 @@ impl Explorer {
                     ..Default::default()
                 };
 
-                ui.add_element(e_message, "e_msg");
+                ui.add_child_to_root(e_message, "e_msg");
             }
         }
     }
@@ -250,7 +252,7 @@ impl Explorer {
                 OPEN => {
                     if event.element_name == "folder" {
                         {
-                            let mut ui = self.ui.borrow_mut();
+                            let ui = self.ui.borrow();
                             let element = ui.get_element(event.element_id).unwrap();
                             let text = element.get_text_at_pos(1).unwrap();
                             self.path.push(text);
@@ -268,7 +270,7 @@ impl Explorer {
                 }
                 ENTRY_ACTION => match event.element_name {
                     "open" => {
-                        let mut ui = self.ui.borrow_mut();
+                        let ui = self.ui.borrow();
                         let selected = ui.get_element(self.hovered_element).unwrap();
                         if selected.name == "folder" {
                             let text = selected.get_text_at_pos(1).unwrap();
@@ -281,6 +283,15 @@ impl Explorer {
                             self.open_file(id);
                         }
                     }
+                    "rename" => {
+                        let mut ui = self.ui.borrow_mut();
+
+                        let selected = ui.get_element(self.selected_file).unwrap();
+                        println!("{:?}", selected);
+
+                        let child = selected.get_child(1).unwrap().get_mut(&mut ui);
+                        child.replace_type(|old: Text| old.to_input());
+                    }
                     name => println!("{name}"),
                 },
 
@@ -291,7 +302,7 @@ impl Explorer {
 
     fn open_file(&mut self, clicked_id: u32) {
         let path = {
-            let mut ui = self.ui.borrow_mut();
+            let ui = self.ui.borrow();
             let element = ui.get_element(clicked_id).unwrap();
             let text = element.get_text_at_pos(1).unwrap();
             self.path.join(text)
@@ -312,8 +323,10 @@ impl Explorer {
 
     pub fn right_click(&mut self, ui: &mut UiState) -> bool {
         if let Some(hovered) = ui.get_hovered() {
+            println!("{:?}", hovered);
             if hovered.name == "file" || hovered.name == "folder" {
                 self.hovered_element = hovered.id;
+                self.selected_file = hovered.id;
 
                 if self.tool_tip != u32::MAX {
                     ui.remove_element_by_id(self.tool_tip);
@@ -346,11 +359,11 @@ impl Explorer {
                                     color: RGBA::grey(220),
                                     ..Default::default()
                                 }
-                                .wrap("", &ui),
+                                .wrap(""),
                             ],
                             ..Default::default()
                         }
-                        .wrap("open", &ui),
+                        .wrap("open"),
                         Button {
                             width: Fill,
                             height: Px(30.0),
@@ -367,11 +380,11 @@ impl Explorer {
 
                                     ..Default::default()
                                 }
-                                .wrap("", &ui),
+                                .wrap(""),
                             ],
                             ..Default::default()
                         }
-                        .wrap("rename", &ui),
+                        .wrap("rename"),
                         Button {
                             width: Relative(1.0),
                             height: Px(30.0),
@@ -388,16 +401,16 @@ impl Explorer {
 
                                     ..Default::default()
                                 }
-                                .wrap("", &ui),
+                                .wrap(""),
                             ],
                             ..Default::default()
                         }
-                        .wrap("delete", &ui),
+                        .wrap("delete"),
                     ],
                     ..Default::default()
                 };
 
-                self.tool_tip = ui.add_element(tool_tip, "");
+                self.tool_tip = ui.add_child_to_root(tool_tip, "");
             }
             ui.dirty = DirtyFlags::Resize;
             true
@@ -420,7 +433,7 @@ impl Explorer {
 }
 
 fn on_click(context: CallContext) {
-    let button: &mut Button = context.element.downcast_mut();
+    let button: &mut Button = context.element.get_mut(context.ui).downcast_mut();
     match button.state {
         ButtonState::Normal => {
             button.color = RGBA::ZERO;
@@ -433,12 +446,12 @@ fn on_click(context: CallContext) {
         }
         ButtonState::Disabled => unreachable!(),
     }
-    context.element.set_changed();
+    context.ui.dirty = DirtyFlags::Color
 }
 
 fn tick_error(context: CallContext) {
-    let this: &mut Ticking<Absolute> = context.element.downcast_mut();
+    let this: &Ticking<Absolute> = context.element.downcast();
     if this.last_tick.elapsed().as_secs_f32() > 1.0 {
-        context.element.remove_self();
+        context.ui.remove_element(&context.element);
     }
 }

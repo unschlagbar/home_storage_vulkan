@@ -2,7 +2,8 @@
 #![allow(clippy::single_match)]
 use crate::{explorer::Explorer, vulkan_render::VulkanRender};
 use iron_oxide::{
-    graphics::TextureAtlas, ui::{DirtyFlags, EventResult, UiState}
+    graphics::TextureAtlas,
+    ui::{DirtyFlags, EventResult, UiState},
 };
 use std::{
     cell::RefCell,
@@ -129,7 +130,7 @@ impl ApplicationHandler for App {
 
         let ui_event = {
             let mut ui = self.ui.borrow_mut();
-    
+
             match ui.window_event(&event, window) {
                 EventResult::New | EventResult::None => {
                     if let WindowEvent::MouseInput {
@@ -145,7 +146,8 @@ impl ApplicationHandler for App {
                                 }
                             }
                             MouseButton::Right => {
-                                if state == ElementState::Pressed && self.explorer.right_click(&mut ui)
+                                if state == ElementState::Pressed
+                                    && self.explorer.right_click(&mut ui)
                                 {
                                     window.request_redraw();
                                 }
@@ -267,7 +269,7 @@ impl ApplicationHandler for App {
         );
 
         let mut texture_atlas = TextureAtlas::new((1024, 1024));
-        
+
         texture_atlas.load_directory("textures", &renderer.base, renderer.cmd_pool);
         {
             let mut ui = self.ui.borrow_mut();
