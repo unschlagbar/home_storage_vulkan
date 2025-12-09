@@ -3,23 +3,19 @@ use ash::vk::{
     self, AccessFlags, CompareOp, Extent3D, Format, ImageUsageFlags, MemoryPropertyFlags,
     PipelineStageFlags, ShaderStageFlags,
 };
-use cgmath::{Matrix4, ortho};
 use iron_oxide::{
     graphics::{self, Buffer, SinlgeTimeCommands, Swapchain, VkBase},
+    primitives::Matrix4,
     ui::UiState,
 };
 use std::{
     cell::RefCell,
-    ptr::{copy_nonoverlapping, null, null_mut},
+    ptr::{self, copy_nonoverlapping, null},
     rc::Rc,
     thread::sleep,
     time::{Duration, Instant},
 };
-use winit::{
-    dpi::PhysicalSize,
-    raw_window_handle::{HasDisplayHandle, HasWindowHandle},
-    window::Window,
-};
+use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::app::VSYNC;
 
@@ -37,7 +33,7 @@ pub struct VulkanRender {
     pub single_time_cmd_pool: vk::CommandPool,
 
     pub uniform_buffers: [Buffer; MFIF],
-    uniform_buffers_mapped: [*mut Matrix4<f32>; MFIF],
+    uniform_buffers_mapped: [*mut Matrix4; MFIF],
 
     pub command_buffers: [vk::CommandBuffer; MFIF],
 
@@ -59,11 +55,8 @@ impl VulkanRender {
     pub fn create(window: &Window, ui_state: Rc<RefCell<UiState>>) -> Self {
         let start_time = Instant::now();
 
-        let display_handle = window.display_handle().unwrap().as_raw();
-        let window_handle = window.window_handle().unwrap().as_raw();
-
         let (base, surface_loader, surface) =
-            VkBase::create(0, vk::API_VERSION_1_3, display_handle, window_handle);
+            VkBase::create(0, vk::API_VERSION_1_3, c"Home Storage", window);
 
         let cmd_pool = Self::create_cmd_pool(&base);
         let single_time_cmd_pool = Self::create_single_time_cmd_pool(&base);
@@ -103,7 +96,7 @@ impl VulkanRender {
 
         font_atlas.create_view(&base, vk::ImageAspectFlags::COLOR);
 
-        let (uniform_buffers, uniform_buffers_mapped) = create_uniform_buffers(&base);
+        let (uniform_buffers, uniform_buffers_mapped) = Buffer::create_uniform(&base);
 
         let texture_sampler = Self::create_texture_sampler(&base.device);
 
@@ -308,7 +301,7 @@ impl VulkanRender {
         let aloc_info = vk::CommandBufferAllocateInfo {
             command_pool: cmd_pool,
             level: vk::CommandBufferLevel::PRIMARY,
-            command_buffer_count: MFIF as _,
+            command_buffer_count: MFIF as u32,
             ..Default::default()
         };
 
@@ -518,17 +511,19 @@ impl VulkanRender {
     }
 
     fn update_ui_uniform_buffer(&mut self) {
-        let ubo: Matrix4<f32> = ortho(
+        let ubo = Matrix4::ortho(
             0.0,
-            self.window_size.width as _,
+            self.window_size.width as f32,
             0.0,
-            self.window_size.height as _,
+            self.window_size.height as f32,
             1.0,
             -1.0,
         );
 
-        for uniform_buffer in self.uniform_buffers_mapped {
-            unsafe { copy_nonoverlapping(&ubo as _, uniform_buffer as _, 1) };
+        unsafe {
+            for uniform_buffer in self.uniform_buffers_mapped {
+                copy_nonoverlapping(ptr::from_ref(&ubo), uniform_buffer, 1);
+            }
         }
     }
 
@@ -762,23 +757,4 @@ fn _create_descriptor_sets(
     }
 
     descriptor_sets
-}
-
-pub fn create_uniform_buffers<T>(base: &VkBase) -> ([Buffer; MFIF], [*mut T; MFIF]) {
-    let buffer_size = std::mem::size_of::<T>() as u64;
-
-    let mut uniform_buffers = [Buffer::null(); MFIF];
-    let mut mapped = [null_mut(); MFIF];
-
-    for i in 0..MFIF {
-        uniform_buffers[i] = Buffer::create(
-            base,
-            buffer_size,
-            vk::BufferUsageFlags::UNIFORM_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-        mapped[i] = uniform_buffers[i].map_memory(&base.device, buffer_size, 0);
-    }
-
-    (uniform_buffers, mapped)
 }

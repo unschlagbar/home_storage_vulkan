@@ -5,12 +5,12 @@ use iron_oxide::ui::{Absolute, Align, FlexDirection, Image, ScrollPanel, Ticking
 use iron_oxide::{
     graphics::formats::RGBA,
     ui::{
-        Button, ButtonState, CallContext, Container, DirtyFlags, FnPtr, OutArea, QueuedEvent, Text,
+        Button, ButtonState, CallContext, Container, DirtyFlags, OutArea, QueuedEvent, Text,
         UiEvent, UiState, UiUnit::*,
     },
 };
 
-use crate::Icon;
+use crate::UiIcons;
 
 const OPEN: u16 = 1;
 const ENTRY_ACTION: u16 = 2;
@@ -63,7 +63,7 @@ impl Explorer {
                         height: Px(34.0),
                         margin: OutArea::new(3.0),
                         padding: OutArea::new(2.0),
-                        callback: FnPtr::new(on_click),
+                        callback: Some(on_click),
                         message: GO_BACK,
                         ..Default::default()
                     },
@@ -74,7 +74,7 @@ impl Explorer {
 
             ui.add_child_to(
                 Image {
-                    atlas_index: Icon::Back as u32,
+                    atlas_index: UiIcons::Back as u32,
                     ..Default::default()
                 },
                 "back_image",
@@ -140,76 +140,80 @@ impl Explorer {
 
                     is_empty = false;
 
-                    let (el_name, icon) = if entry.path().is_dir() {
-                        ("folder", Icon::Folder as u32)
+                    let (element_name, icon) = if entry.path().is_dir() {
+                        ("folder", UiIcons::Folder as u32)
                     } else {
                         let icon = match extention {
-                            "txt" => Icon::TxtFile,
-                            "rs" => Icon::RustFile,
-                            _ => Icon::TxtFile,
+                            "txt" => UiIcons::TxtFile,
+                            "rs" => UiIcons::RustFile,
+                            _ => UiIcons::TxtFile,
                         } as u32;
                         ("file", icon)
                     };
 
-                    let image = Container {
-                        height: Px(30.0),
-                        width: Px(30.0),
-                        margin: OutArea::from(&[0.0, 0.0, 6.0, 0.0]),
-                        color: RGBA::TRANSPARENT,
-                        padding: OutArea::new(3.0),
-                        childs: vec![
-                            Image {
-                                atlas_index: icon,
-                                ..Default::default()
-                            }
-                            .wrap(""),
-                        ],
-                        ..Default::default()
-                    };
-
-                    let child = Button {
-                        color: RGBA::ZERO,
-                        height: Auto,
-                        width: Fill,
-                        flex_direction: FlexDirection::Horizontal,
-                        padding: OutArea::horizontal(Px(2.0)),
-                        corner: [Px(5.0); 4],
-                        callback: FnPtr::new(on_click),
-                        message: OPEN,
-                        childs: vec![
-                            image.wrap(""),
-                            Text {
-                                color: RGBA::grey(220),
-                                text: name,
-                                align: Align::Left,
-                                ..Default::default()
-                            }
-                            .wrap(""),
-                        ],
-                        ..Default::default()
-                    };
-
-                    ui.add_child_to(child, el_name, self.content_window);
+                    ui.add_child_to(
+                        Button {
+                            color: RGBA::ZERO,
+                            height: Auto,
+                            width: Fill,
+                            flex_direction: FlexDirection::Horizontal,
+                            padding: OutArea::horizontal(Px(2.0)),
+                            corner: [Px(5.0); 4],
+                            callback: Some(on_click),
+                            message: OPEN,
+                            childs: vec![
+                                Container {
+                                    height: Px(30.0),
+                                    width: Px(30.0),
+                                    margin: OutArea::from(&[0.0, 0.0, 6.0, 0.0]),
+                                    color: RGBA::TRANSPARENT,
+                                    padding: OutArea::new(3.0),
+                                    childs: vec![
+                                        Image {
+                                            atlas_index: icon,
+                                            ..Default::default()
+                                        }
+                                        .wrap(""),
+                                    ],
+                                    ..Default::default()
+                                }
+                                .wrap(""),
+                                Text {
+                                    color: RGBA::grey(220),
+                                    text: name,
+                                    align: Align::Left,
+                                    ..Default::default()
+                                }
+                                .wrap(""),
+                            ],
+                            ..Default::default()
+                        },
+                        element_name,
+                        self.content_window,
+                    );
                 }
 
                 if is_empty {
-                    let child = Container {
-                        color: RGBA::ZERO,
-                        height: Px(50.0),
-                        width: Relative(1.0),
-                        padding: OutArea::horizontal(Px(2.0)),
-                        childs: vec![
-                            Text {
-                                text: "This Folder\nis Empty".to_string(),
-                                color: RGBA::grey(130),
-                                align: Align::Center,
-                                ..Default::default()
-                            }
-                            .wrap("empty_msg"),
-                        ],
-                        ..Default::default()
-                    };
-                    ui.add_child_to(child, "", self.content_window);
+                    ui.add_child_to(
+                        Container {
+                            color: RGBA::ZERO,
+                            height: Px(50.0),
+                            width: Relative(1.0),
+                            padding: OutArea::horizontal(Px(2.0)),
+                            childs: vec![
+                                Text {
+                                    text: "This Folder\nis Empty".to_string(),
+                                    color: RGBA::grey(130),
+                                    align: Align::Center,
+                                    ..Default::default()
+                                }
+                                .wrap("empty_msg"),
+                            ],
+                            ..Default::default()
+                        },
+                        "",
+                        self.content_window,
+                    );
                 }
             }
             Err(error) => {
@@ -237,7 +241,7 @@ impl Explorer {
                         ],
                         ..Default::default()
                     },
-                    tick: FnPtr::new(tick_error),
+                    tick: Some(tick_error),
                     ..Default::default()
                 };
 
@@ -323,7 +327,6 @@ impl Explorer {
 
     pub fn right_click(&mut self, ui: &mut UiState) -> bool {
         if let Some(hovered) = ui.get_hovered() {
-            println!("{:?}", hovered);
             if hovered.name == "file" || hovered.name == "folder" {
                 self.hovered_element = hovered.id;
                 self.selected_file = hovered.id;
@@ -335,82 +338,83 @@ impl Explorer {
                 let x = Px(ui.cursor_pos.x);
                 let y = Px(ui.cursor_pos.y);
 
-                let tool_tip = Absolute {
-                    x,
-                    y,
-                    width: Px(200.0),
-                    height: Auto,
-                    padding: OutArea::new(2.0),
-                    color: RGBA::grey(50),
-                    corner: [Px(7.0); 4],
-                    childs: vec![
-                        Button {
-                            width: Fill,
-                            height: Px(30.0),
-                            color: RGBA::ZERO,
-                            border_color: RGBA::BLUE,
-                            border: [1; 4],
-                            corner: [Px(5.0); 4],
-                            callback: FnPtr::new(on_click),
-                            message: ENTRY_ACTION,
-                            childs: vec![
-                                Text {
-                                    text: "Öffnen".to_string(),
-                                    color: RGBA::grey(220),
-                                    ..Default::default()
-                                }
-                                .wrap(""),
-                            ],
-                            ..Default::default()
-                        }
-                        .wrap("open"),
-                        Button {
-                            width: Fill,
-                            height: Px(30.0),
-                            color: RGBA::ZERO,
-                            border_color: RGBA::BLUE,
-                            border: [1; 4],
-                            corner: [Px(5.0); 4],
-                            callback: FnPtr::new(on_click),
-                            message: ENTRY_ACTION,
-                            childs: vec![
-                                Text {
-                                    text: "Umbennenen".to_string(),
-                                    color: RGBA::grey(220),
+                self.tool_tip = ui.add_child_to_root(
+                    Absolute {
+                        x,
+                        y,
+                        width: Px(200.0),
+                        height: Auto,
+                        padding: OutArea::new(2.0),
+                        color: RGBA::grey(50),
+                        corner: [Px(7.0); 4],
+                        childs: vec![
+                            Button {
+                                width: Fill,
+                                height: Px(30.0),
+                                color: RGBA::ZERO,
+                                border_color: RGBA::BLUE,
+                                border: [1; 4],
+                                corner: [Px(5.0); 4],
+                                callback: Some(on_click),
+                                message: ENTRY_ACTION,
+                                childs: vec![
+                                    Text {
+                                        text: "Öffnen".to_string(),
+                                        color: RGBA::grey(220),
+                                        ..Default::default()
+                                    }
+                                    .wrap(""),
+                                ],
+                                ..Default::default()
+                            }
+                            .wrap("open"),
+                            Button {
+                                width: Fill,
+                                height: Px(30.0),
+                                color: RGBA::ZERO,
+                                border_color: RGBA::BLUE,
+                                border: [1; 4],
+                                corner: [Px(5.0); 4],
+                                callback: Some(on_click),
+                                message: ENTRY_ACTION,
+                                childs: vec![
+                                    Text {
+                                        text: "Umbennenen".to_string(),
+                                        color: RGBA::grey(220),
 
-                                    ..Default::default()
-                                }
-                                .wrap(""),
-                            ],
-                            ..Default::default()
-                        }
-                        .wrap("rename"),
-                        Button {
-                            width: Relative(1.0),
-                            height: Px(30.0),
-                            color: RGBA::ZERO,
-                            border_color: RGBA::BLUE,
-                            border: [1; 4],
-                            corner: [Px(5.0); 4],
-                            callback: FnPtr::new(on_click),
-                            message: ENTRY_ACTION,
-                            childs: vec![
-                                Text {
-                                    text: "Löschen".to_string(),
-                                    color: RGBA::grey(220),
+                                        ..Default::default()
+                                    }
+                                    .wrap(""),
+                                ],
+                                ..Default::default()
+                            }
+                            .wrap("rename"),
+                            Button {
+                                width: Relative(1.0),
+                                height: Px(30.0),
+                                color: RGBA::ZERO,
+                                border_color: RGBA::BLUE,
+                                border: [1; 4],
+                                corner: [Px(5.0); 4],
+                                callback: Some(on_click),
+                                message: ENTRY_ACTION,
+                                childs: vec![
+                                    Text {
+                                        text: "Löschen".to_string(),
+                                        color: RGBA::grey(220),
 
-                                    ..Default::default()
-                                }
-                                .wrap(""),
-                            ],
-                            ..Default::default()
-                        }
-                        .wrap("delete"),
-                    ],
-                    ..Default::default()
-                };
-
-                self.tool_tip = ui.add_child_to_root(tool_tip, "");
+                                        ..Default::default()
+                                    }
+                                    .wrap(""),
+                                ],
+                                ..Default::default()
+                            }
+                            .wrap("delete"),
+                        ],
+                        ..Default::default()
+                    },
+                    "",
+                );
             }
             ui.dirty = DirtyFlags::Resize;
             true

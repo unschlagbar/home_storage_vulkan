@@ -270,7 +270,7 @@ impl ApplicationHandler for App {
 
         let mut texture_atlas = TextureAtlas::new((1024, 1024));
 
-        texture_atlas.load_directory("textures", &renderer.base, renderer.cmd_pool);
+        texture_atlas.load_directory("assets/textures", &renderer.base, renderer.cmd_pool);
         {
             let mut ui = self.ui.borrow_mut();
             ui.init_graphics(

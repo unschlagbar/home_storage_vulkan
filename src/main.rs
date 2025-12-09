@@ -1,7 +1,7 @@
 #![cfg(not(target_os = "android"))]
 //#![windows_subsystem = "windows"]
 
-include!(concat!(env!("OUT_DIR"), "/gen_icons.rs"));
+include!(concat!(env!("OUT_DIR"), "/gen_assets.rs"));
 
 use winit::event_loop::EventLoop;
 
