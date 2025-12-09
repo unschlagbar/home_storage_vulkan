@@ -13,7 +13,7 @@ use crate::app::App;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
-    let mut app = App::new();
+    let mut app = App::create();
 
     event_loop.run_app(&mut app).unwrap();
 }

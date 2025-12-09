@@ -49,7 +49,7 @@ pub struct App {
 
 impl App {
     #[cfg(not(target_os = "android"))]
-    pub fn new() -> Self {
+    pub fn create() -> Self {
         let renderer = None;
 
         let ui = Rc::new(RefCell::new(UiState::create(true)));
@@ -68,7 +68,7 @@ impl App {
     }
 
     #[cfg(target_os = "android")]
-    pub fn new(assets: AssetManager) -> Self {
+    pub fn create(assets: AssetManager) -> Self {
         let renderer = None;
 
         let ui = Rc::new(RefCell::new(UiState::create(true)));
@@ -169,7 +169,6 @@ impl ApplicationHandler for App {
         match event {
             WindowEvent::RedrawRequested => {
                 renderer.borrow_mut().draw_frame();
-                return;
             }
             WindowEvent::KeyboardInput {
                 device_id: _,
