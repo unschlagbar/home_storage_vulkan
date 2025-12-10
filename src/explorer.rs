@@ -44,7 +44,7 @@ impl Explorer {
             let nav_bar = ui
                 .add_child_to(
                     Container {
-                        color: RGBA::grey(20),
+                        color: RGBA::grey(25),
                         width: Fill,
                         height: Px(40.0),
                         ..Default::default()
@@ -58,7 +58,7 @@ impl Explorer {
             let back_button = ui
                 .add_child_to(
                     Button {
-                        color: RGBA::grey(20),
+                        color: RGBA::ZERO,
                         width: Px(34.0),
                         height: Px(34.0),
                         margin: UiRect::new(3.0),

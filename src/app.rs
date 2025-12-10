@@ -1,15 +1,12 @@
 #![allow(clippy::collapsible_match)]
 #![allow(clippy::single_match)]
-use crate::{explorer::Explorer, vulkan_render::VulkanRender};
+use crate::{explorer::Explorer, network::Network, vulkan_render::VulkanRender};
 use iron_oxide::{
     graphics::TextureAtlas,
     ui::{DirtyFlags, EventResult, UiState},
 };
 use std::{
-    cell::RefCell,
-    rc::Rc,
-    thread::sleep,
-    time::{Duration, Instant},
+    cell::RefCell, rc::Rc, sync::Arc, thread::sleep, time::{Duration, Instant}
 };
 use winit::{
     application::ApplicationHandler,
@@ -38,6 +35,8 @@ pub struct App {
     pub renderer: Option<Rc<RefCell<VulkanRender>>>,
     pub ui: Rc<RefCell<UiState>>,
 
+    pub net: Arc<Network>,
+
     #[cfg(target_os = "android")]
     pub assets: AssetManager,
 
@@ -49,7 +48,7 @@ pub struct App {
 
 impl App {
     #[cfg(not(target_os = "android"))]
-    pub fn create() -> Self {
+    pub fn create(net: Arc<Network>) -> Self {
         let renderer = None;
 
         let ui = Rc::new(RefCell::new(UiState::create(true)));
@@ -62,6 +61,7 @@ impl App {
             renderer,
             time: Instant::now(),
             ui,
+            net,
             explorer,
             target_frame_time: 1.0 / DEFAULT_FPS,
         }
@@ -94,7 +94,7 @@ impl App {
         if let Some(monitor) = window.current_monitor() {
             if let Some(refresh_rate) = monitor.refresh_rate_millihertz() {
                 self.target_frame_time = 1000.0 / refresh_rate as f32;
-                println!("target pfs: {}", refresh_rate / 1000);
+                //println!("target pfs: {}", refresh_rate / 1000);
             } else {
                 println!("Refresh rate not available");
             }
