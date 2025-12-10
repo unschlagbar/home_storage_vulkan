@@ -5,7 +5,7 @@ use iron_oxide::ui::{Absolute, Align, FlexDirection, Image, ScrollPanel, Ticking
 use iron_oxide::{
     graphics::formats::RGBA,
     ui::{
-        Button, ButtonState, CallContext, Container, DirtyFlags, OutArea, QueuedEvent, Text,
+        Button, ButtonState, CallContext, Container, DirtyFlags, UiRect, QueuedEvent, Text,
         UiEvent, UiState, UiUnit::*,
     },
 };
@@ -61,8 +61,8 @@ impl Explorer {
                         color: RGBA::grey(20),
                         width: Px(34.0),
                         height: Px(34.0),
-                        margin: OutArea::new(3.0),
-                        padding: OutArea::new(2.0),
+                        margin: UiRect::new(3.0),
+                        padding: UiRect::new(2.0),
                         callback: Some(on_click),
                         message: GO_BACK,
                         ..Default::default()
@@ -89,7 +89,7 @@ impl Explorer {
                         height: Fill,
                         border: [0, 1, 0, 0],
                         border_color: RGBA::grey(90),
-                        padding: OutArea::new(2.0),
+                        padding: UiRect::new(2.0),
                         ..Default::default()
                     },
                     "content",
@@ -99,7 +99,7 @@ impl Explorer {
 
             ui.add_child_to(
                 ScrollPanel {
-                    padding: OutArea::new(2.0),
+                    padding: UiRect::new(2.0),
                     ..Default::default()
                 },
                 "scroll_pannel",
@@ -157,7 +157,7 @@ impl Explorer {
                             height: Auto,
                             width: Fill,
                             flex_direction: FlexDirection::Horizontal,
-                            padding: OutArea::horizontal(Px(2.0)),
+                            padding: UiRect::horizontal(Px(2.0)),
                             corner: [Px(5.0); 4],
                             callback: Some(on_click),
                             message: OPEN,
@@ -165,9 +165,9 @@ impl Explorer {
                                 Container {
                                     height: Px(30.0),
                                     width: Px(30.0),
-                                    margin: OutArea::from(&[0.0, 0.0, 6.0, 0.0]),
+                                    margin: UiRect::from(&[0.0, 0.0, 6.0, 0.0]),
                                     color: RGBA::TRANSPARENT,
-                                    padding: OutArea::new(3.0),
+                                    padding: UiRect::new(3.0),
                                     childs: vec![
                                         Image {
                                             atlas_index: icon,
@@ -199,7 +199,7 @@ impl Explorer {
                             color: RGBA::ZERO,
                             height: Px(50.0),
                             width: Relative(1.0),
-                            padding: OutArea::horizontal(Px(2.0)),
+                            padding: UiRect::horizontal(Px(2.0)),
                             childs: vec![
                                 Text {
                                     text: "This Folder\nis Empty".to_string(),
@@ -229,7 +229,7 @@ impl Explorer {
                         border: [1; 4],
                         width: Auto,
                         height: Auto,
-                        padding: OutArea::new(3.0),
+                        padding: UiRect::new(3.0),
                         corner: [Px(4.0); 4],
                         childs: vec![
                             Text {
@@ -344,7 +344,7 @@ impl Explorer {
                         y,
                         width: Px(200.0),
                         height: Auto,
-                        padding: OutArea::new(2.0),
+                        padding: UiRect::new(2.0),
                         color: RGBA::grey(50),
                         corner: [Px(7.0); 4],
                         childs: vec![

@@ -10,7 +10,7 @@ use iron_oxide::{
 };
 use std::{
     cell::RefCell,
-    ptr::{self, copy_nonoverlapping, null},
+    ptr,
     rc::Rc,
     thread::sleep,
     time::{Duration, Instant},
@@ -237,7 +237,7 @@ impl VulkanRender {
             pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             color_attachment_count: 1,
             p_color_attachments: &color_attachment_ref as _,
-            p_depth_stencil_attachment: if depth { &depth_attachment_ref } else { null() },
+            p_depth_stencil_attachment: if depth { &depth_attachment_ref } else { ptr::null() },
             ..Default::default()
         }];
 
@@ -522,7 +522,7 @@ impl VulkanRender {
 
         unsafe {
             for uniform_buffer in self.uniform_buffers_mapped {
-                copy_nonoverlapping(ptr::from_ref(&ubo), uniform_buffer, 1);
+                uniform_buffer.copy_from_nonoverlapping(&ubo, 1);
             }
         }
     }
@@ -550,9 +550,9 @@ impl VulkanRender {
             MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
         );
 
-        let mapped_memory = staging_buffer.map_memory(&base.device, image_size, 0);
+        let mapped_memory: *mut u8 = staging_buffer.map_memory(&base.device, image_size, 0);
         unsafe {
-            copy_nonoverlapping(buf.as_ptr(), mapped_memory, image_size as usize);
+            mapped_memory.copy_from_nonoverlapping(buf.as_ptr(), image_size as usize);
         };
         staging_buffer.unmap_memory(&base.device);
 
