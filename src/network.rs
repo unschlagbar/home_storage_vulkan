@@ -1,5 +1,8 @@
-use std::{io::Write, net::{SocketAddr, TcpStream}, sync::{Arc, Mutex}};
-
+use std::{
+    io::Write,
+    net::{SocketAddr, TcpStream},
+    sync::{Arc, Mutex},
+};
 
 pub struct Network {
     pub connection: Arc<Mutex<Connection>>,
@@ -14,7 +17,9 @@ impl Network {
             None
         };
 
-        Self { connection: Arc::new(Mutex::new(Connection::new(stream))) }
+        Self {
+            connection: Arc::new(Mutex::new(Connection::new(stream))),
+        }
     }
 }
 
@@ -27,7 +32,7 @@ impl Connection {
     pub fn new(mut stream: Option<TcpStream>) -> Self {
         let connected = if let Some(stream) = &mut stream {
             stream.set_nodelay(true).unwrap();
-        true
+            true
         } else {
             false
         };

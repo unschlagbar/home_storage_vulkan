@@ -5,8 +5,13 @@ use iron_oxide::{
     graphics::TextureAtlas,
     ui::{DirtyFlags, EventResult, UiState},
 };
+
 use std::{
-    cell::RefCell, rc::Rc, sync::Arc, thread::sleep, time::{Duration, Instant}
+    cell::RefCell,
+    rc::Rc,
+    sync::Arc,
+    thread::sleep,
+    time::{Duration, Instant},
 };
 use winit::{
     application::ApplicationHandler,
@@ -114,6 +119,7 @@ impl App {
         #[cfg(target_os = "windows")]
         let window_attributes =
             window_attributes.with_corner_preference(CornerPreference::RoundSmall);
+
         event_loop.create_window(window_attributes).unwrap()
     }
 }

@@ -237,7 +237,11 @@ impl VulkanRender {
             pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             color_attachment_count: 1,
             p_color_attachments: &color_attachment_ref as _,
-            p_depth_stencil_attachment: if depth { &depth_attachment_ref } else { ptr::null() },
+            p_depth_stencil_attachment: if depth {
+                &depth_attachment_ref
+            } else {
+                ptr::null()
+            },
             ..Default::default()
         }];
 
