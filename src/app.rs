@@ -3,7 +3,7 @@
 use crate::{explorer::Explorer, network::Network, vulkan_render::VulkanRender};
 use iron_oxide::{
     graphics::TextureAtlas,
-    ui::{DirtyFlags, EventResult, UiState},
+    ui::{EventResult, UiState},
 };
 
 use std::{
@@ -222,7 +222,7 @@ impl ApplicationHandler for App {
             if self.time.elapsed().as_secs_f32() > self.target_frame_time {
                 self.time = Instant::now();
                 self.ui.borrow_mut().process_ticks();
-                if !matches!(self.ui.borrow().dirty, DirtyFlags::None) {
+                if self.ui.borrow().is_dirty() {
                     window.request_redraw();
                 }
                 sleep(Duration::from_secs_f32(self.target_frame_time * 0.9));

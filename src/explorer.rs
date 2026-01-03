@@ -1,7 +1,7 @@
 use std::env;
 use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
-use iron_oxide::ui::{Absolute, Align, FlexDirection, Image, ScrollPanel, Ticking, TypeConst};
+use iron_oxide::ui::{Absolute, Align, ElementBuilder, FlexDirection, Image, ScrollPanel, Ticking};
 use iron_oxide::{
     graphics::formats::RGBA,
     ui::{
@@ -107,15 +107,18 @@ impl Explorer {
             )
             .unwrap()
         };
+
+        let path = env::var(Self::HOME)
+            .ok()
+            .unwrap_or(Self::ROOT_PATH.to_string())
+            .into();
+
         Self {
             content_window,
             tool_tip: u32::MAX,
             hovered_element: 0,
             selected_file: 0,
-            path: env::var(Self::HOME)
-                .ok()
-                .unwrap_or(Self::ROOT_PATH.to_string())
-                .into(),
+            path,
             ui,
         }
     }
@@ -127,7 +130,7 @@ impl Explorer {
             Ok(entries) => {
                 let content = ui.get_element(self.content_window).unwrap();
                 // Todo fix unchecked ticks & selection
-                unsafe { content.get_mut(&mut ui).clear_childs() };
+                content.get_mut(&mut ui).clear_childs();
 
                 let mut is_empty = true;
                 for entry in entries {
@@ -301,11 +304,13 @@ impl Explorer {
                         let mut ui = self.ui.borrow_mut();
 
                         let selected = ui.get_element_mut(self.selected_file).unwrap();
-                        println!("{:?}", selected);
+                        let container: &mut Button = selected.downcast_mut().unwrap();
+                        container.border_color = RGBA::GREEN;
+                        container.border = [1; 4];
+                        container.callback = None;
 
-                        let child = selected.get_child(1).unwrap().get_mut(&mut ui);
-                        let text: &mut Text = child.downcast_mut().unwrap();
-                        text.text += " Edit";
+                        let child = selected.get_child(1).unwrap();
+                        Text::focus(&mut ui, &child, 0..0);
                     }
                     name => println!("{name}"),
                 },
@@ -347,9 +352,8 @@ impl Explorer {
                                 height: Px(30.0),
                                 color: RGBA::ZERO,
                                 border_color: RGBA::BLUE,
-                                border: [1; 4],
                                 corner: [Px(5.0); 4],
-                                callback: Some(on_click),
+                                callback: Some(on_click_tooltip),
                                 message: ENTRY_ACTION,
                                 ..Default::default()
                             }
@@ -369,9 +373,8 @@ impl Explorer {
                                 height: Px(30.0),
                                 color: RGBA::ZERO,
                                 border_color: RGBA::BLUE,
-                                border: [1; 4],
                                 corner: [Px(5.0); 4],
-                                callback: Some(on_click),
+                                callback: Some(on_click_tooltip),
                                 message: ENTRY_ACTION,
                                 ..Default::default()
                             }
@@ -392,9 +395,8 @@ impl Explorer {
                                 height: Px(30.0),
                                 color: RGBA::ZERO,
                                 border_color: RGBA::BLUE,
-                                border: [1; 4],
                                 corner: [Px(5.0); 4],
-                                callback: Some(on_click),
+                                callback: Some(on_click_tooltip),
                                 message: ENTRY_ACTION,
                                 ..Default::default()
                             }
@@ -446,6 +448,27 @@ fn on_click(context: CallContext) {
         }
         ButtonState::Pressed => {
             button.color = RGBA::grey(60);
+        }
+        ButtonState::Disabled => unreachable!(),
+    }
+    context.ui.color_changed();
+}
+
+fn on_click_tooltip(context: CallContext) {
+    let button: &mut Button = context.element.get_mut(context.ui).downcast_mut().unwrap();
+
+    match button.state {
+        ButtonState::Normal => {
+            button.color = RGBA::ZERO;
+            button.border = [0; 4];
+        }
+        ButtonState::Hovered => {
+            button.color = RGBA::grey(40);
+            button.border = [1; 4];
+        }
+        ButtonState::Pressed => {
+            button.color = RGBA::grey(60);
+            button.border = [1; 4];
         }
         ButtonState::Disabled => unreachable!(),
     }

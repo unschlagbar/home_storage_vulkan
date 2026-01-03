@@ -47,6 +47,7 @@ void main() {
 
     float onStraightBorder = step(0.001, dot(onBorderMask, vec4(1.0))); // any(onBorderMask)
     outColor.rgb = mix(outColor.rgb, fragBorderColor.rgb, borderActive * onStraightBorder);
+    outColor.a = mix(outColor.a, fragBorderColor.a, borderActive * onStraightBorder);
 
     float inCorner = cornerActive * borderActive * step(0.001, dot(inCornerMask, vec4(1.0)));
 

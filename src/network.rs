@@ -41,7 +41,7 @@ impl Connection {
 
     pub fn send(&mut self, buf: &[u8]) {
         if let Some(stream) = &mut self.stream {
-            stream.write(buf).unwrap();
+            stream.write_all(buf).unwrap();
             println!("Sent {:?} bytes", buf.len());
         } else {
             println!("Not connected");
