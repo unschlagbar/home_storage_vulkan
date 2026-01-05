@@ -5,7 +5,7 @@ use iron_oxide::ui::{Absolute, Align, ElementBuilder, FlexDirection, Image, Scro
 use iron_oxide::{
     graphics::formats::RGBA,
     ui::{
-        Button, ButtonState, CallContext, Container, QueuedEvent, Text, UiEvent, UiRect, UiState,
+        Button, ButtonState, CallContext, Container, QueuedEvent, Text, UiEvent, UiRect, Ui,
         UiUnit::*,
     },
 };
@@ -23,11 +23,11 @@ pub struct Explorer {
     pub selected_file: u32,
 
     pub path: PathBuf,
-    pub ui: Rc<RefCell<UiState>>,
+    pub ui: Rc<RefCell<Ui>>,
 }
 
 impl Explorer {
-    pub fn new(ui: Rc<RefCell<UiState>>) -> Self {
+    pub fn new(ui: Rc<RefCell<Ui>>) -> Self {
         let content_window = {
             let mut ui = ui.borrow_mut();
 
@@ -130,7 +130,7 @@ impl Explorer {
             Ok(entries) => {
                 let content = ui.get_element(self.content_window).unwrap();
                 // Todo fix unchecked ticks & selection
-                content.get_mut(&mut ui).clear_childs();
+                ui.remove_all_element(&content);
 
                 let mut is_empty = true;
                 for entry in entries {
@@ -158,6 +158,7 @@ impl Explorer {
                     ui.add_child_to(
                         Button {
                             color: RGBA::ZERO,
+                            border_color: RGBA::GREEN,
                             height: Auto,
                             width: Fill,
                             flex_direction: FlexDirection::Horizontal,
@@ -268,12 +269,14 @@ impl Explorer {
             match event.message {
                 OPEN => {
                     if event.element_name == "folder" {
-                        {
+                        let element = {
                             let mut ui = self.ui.borrow_mut();
-                            let element = ui.get_element(event.element_id).unwrap();
-                            let text = element.get_text_at_pos(1).unwrap();
-                            self.path.push(text);
+                            ui.get_element(event.element_id).unwrap()
                         };
+
+                        let text = element.get_text_at_pos(1).unwrap();
+                        self.path.push(text);
+
                         self.display_path();
                     } else {
                         self.open_file(event.element_id);
@@ -287,16 +290,17 @@ impl Explorer {
                 }
                 ENTRY_ACTION => match event.element_name {
                     "open" => {
-                        let mut ui = self.ui.borrow_mut();
-                        let selected = ui.get_element(self.hovered_element).unwrap();
+                        let selected =  {
+                            let mut ui = self.ui.borrow_mut();
+                            ui.get_element(self.hovered_element).unwrap()
+                        };
+
                         if selected.name == "folder" {
                             let text = selected.get_text_at_pos(1).unwrap();
                             self.path.push(text);
-                            drop(ui);
                             self.display_path();
                         } else {
                             let id = selected.id();
-                            drop(ui);
                             self.open_file(id);
                         }
                     }
@@ -305,7 +309,6 @@ impl Explorer {
 
                         let selected = ui.get_element_mut(self.selected_file).unwrap();
                         let container: &mut Button = selected.downcast_mut().unwrap();
-                        container.border_color = RGBA::GREEN;
                         container.border = [1; 4];
                         container.callback = None;
 
@@ -320,7 +323,7 @@ impl Explorer {
         }
     }
 
-    pub fn right_click(&mut self, ui: &mut UiState) -> bool {
+    pub fn right_click(&mut self, ui: &mut Ui) -> bool {
         if let Some(hovered) = ui.get_hovered() {
             if hovered.name == "file" || hovered.name == "folder" {
                 self.hovered_element = hovered.id();
@@ -406,7 +409,6 @@ impl Explorer {
                                     Text {
                                         text: "Löschen".to_string(),
                                         color: RGBA::grey(220),
-
                                         ..Default::default()
                                     }
                                     .wrap(""),
@@ -423,7 +425,7 @@ impl Explorer {
         }
     }
 
-    pub fn mouse_click(&mut self, ui: &mut UiState) -> bool {
+    pub fn mouse_click(&mut self, ui: &mut Ui) -> bool {
         if self.tool_tip != u32::MAX {
             ui.remove_element_by_id(self.tool_tip);
 

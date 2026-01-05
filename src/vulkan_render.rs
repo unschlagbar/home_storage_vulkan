@@ -6,7 +6,7 @@ use ash::vk::{
 use iron_oxide::{
     graphics::{self, Buffer, SinlgeTimeCommands, Swapchain, VkBase},
     primitives::Matrix4,
-    ui::UiState,
+    ui::Ui,
 };
 use std::{
     cell::RefCell,
@@ -48,11 +48,11 @@ pub struct VulkanRender {
 
     pub depth_image: graphics::Image,
 
-    pub ui_state: Rc<RefCell<UiState>>,
+    pub ui_state: Rc<RefCell<Ui>>,
 }
 
 impl VulkanRender {
-    pub fn create(window: &Window, ui_state: Rc<RefCell<UiState>>) -> Self {
+    pub fn create(window: &Window, ui_state: Rc<RefCell<Ui>>) -> Self {
         let start_time = Instant::now();
 
         let (base, surface_loader, surface) =

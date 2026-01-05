@@ -3,7 +3,7 @@
 use crate::{explorer::Explorer, network::Network, vulkan_render::VulkanRender};
 use iron_oxide::{
     graphics::TextureAtlas,
-    ui::{EventResult, UiState},
+    ui::{InputResult, Ui},
 };
 
 use std::{
@@ -38,7 +38,7 @@ const DEFAULT_FPS: f32 = 144.0;
 pub struct App {
     pub window: Option<Window>,
     pub renderer: Option<Rc<RefCell<VulkanRender>>>,
-    pub ui: Rc<RefCell<UiState>>,
+    pub ui: Rc<RefCell<Ui>>,
 
     pub net: Arc<Network>,
 
@@ -56,7 +56,7 @@ impl App {
     pub fn create(net: Arc<Network>) -> Self {
         let renderer = None;
 
-        let ui = Rc::new(RefCell::new(UiState::create(true)));
+        let ui = Rc::new(RefCell::new(Ui::create(true)));
         let mut explorer = Explorer::new(ui.clone());
 
         explorer.display_path();
@@ -76,7 +76,7 @@ impl App {
     pub fn create(assets: AssetManager) -> Self {
         let renderer = None;
 
-        let ui = Rc::new(RefCell::new(UiState::create(true)));
+        let ui = Rc::new(RefCell::new(Ui::create(true)));
         let mut explorer = Explorer::new(ui.clone());
 
         explorer.display_path();
@@ -138,7 +138,7 @@ impl ApplicationHandler for App {
             let mut ui = self.ui.borrow_mut();
 
             match ui.window_event(&event, window) {
-                EventResult::New | EventResult::None => {
+                InputResult::New | InputResult::None => {
                     if let WindowEvent::MouseInput {
                         device_id: _,
                         state,
@@ -162,7 +162,7 @@ impl ApplicationHandler for App {
                         }
                     }
                 }
-                EventResult::Old => (),
+                InputResult::Old => (),
             }
 
             ui.event.take()
