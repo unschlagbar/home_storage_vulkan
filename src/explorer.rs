@@ -5,7 +5,7 @@ use iron_oxide::ui::{Absolute, Align, ElementBuilder, FlexDirection, Image, Scro
 use iron_oxide::{
     graphics::formats::RGBA,
     ui::{
-        Button, ButtonState, CallContext, Container, QueuedEvent, Text, UiEvent, UiRect, Ui,
+        Button, ButtonState, CallContext, Container, QueuedEvent, Text, Ui, UiEvent, UiRect,
         UiUnit::*,
     },
 };
@@ -129,8 +129,8 @@ impl Explorer {
         match fs::read_dir(&self.path) {
             Ok(entries) => {
                 let content = ui.get_element(self.content_window).unwrap();
-                // Todo fix unchecked ticks & selection
-                ui.remove_all_element(&content);
+
+                ui.remove_all_elements(content);
 
                 let mut is_empty = true;
                 for entry in entries {
@@ -148,7 +148,6 @@ impl Explorer {
                         ("folder", UiIcons::Folder as u32)
                     } else {
                         let icon = match extention {
-                            "txt" => UiIcons::TxtFile,
                             "rs" => UiIcons::RustFile,
                             _ => UiIcons::TxtFile,
                         } as u32;
@@ -265,7 +264,7 @@ impl Explorer {
     }
 
     pub fn proceed_event(&mut self, event: QueuedEvent) {
-        if event.event == UiEvent::Press {
+        if event.event == UiEvent::Release {
             match event.message {
                 OPEN => {
                     if event.element_name == "folder" {
@@ -290,7 +289,7 @@ impl Explorer {
                 }
                 ENTRY_ACTION => match event.element_name {
                     "open" => {
-                        let selected =  {
+                        let selected = {
                             let mut ui = self.ui.borrow_mut();
                             ui.get_element(self.hovered_element).unwrap()
                         };

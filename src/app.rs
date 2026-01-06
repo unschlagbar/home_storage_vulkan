@@ -1,10 +1,7 @@
 #![allow(clippy::collapsible_match)]
 #![allow(clippy::single_match)]
 use crate::{explorer::Explorer, network::Network, vulkan_render::VulkanRender};
-use iron_oxide::{
-    graphics::TextureAtlas,
-    ui::{InputResult, Ui},
-};
+use iron_oxide::{graphics::TextureAtlas, ui::Ui};
 
 use std::{
     cell::RefCell,
@@ -136,33 +133,27 @@ impl ApplicationHandler for App {
 
         let ui_event = {
             let mut ui = self.ui.borrow_mut();
+            ui.window_event(&event, window);
 
-            match ui.window_event(&event, window) {
-                InputResult::New | InputResult::None => {
-                    if let WindowEvent::MouseInput {
-                        device_id: _,
-                        state,
-                        button,
-                    } = event
-                    {
-                        match button {
-                            MouseButton::Left => {
-                                if self.explorer.mouse_click(&mut ui) {
-                                    window.request_redraw();
-                                }
-                            }
-                            MouseButton::Right => {
-                                if state == ElementState::Pressed
-                                    && self.explorer.right_click(&mut ui)
-                                {
-                                    window.request_redraw();
-                                }
-                            }
-                            _ => (),
+            if let WindowEvent::MouseInput {
+                device_id: _,
+                state,
+                button,
+            } = event
+            {
+                match (button, state) {
+                    (MouseButton::Left, ElementState::Released) => {
+                        if self.explorer.mouse_click(&mut ui) {
+                            window.request_redraw();
                         }
                     }
+                    (MouseButton::Right, ElementState::Pressed) => {
+                        if state == ElementState::Pressed && self.explorer.right_click(&mut ui) {
+                            window.request_redraw();
+                        }
+                    }
+                    _ => (),
                 }
-                InputResult::Old => (),
             }
 
             ui.event.take()
