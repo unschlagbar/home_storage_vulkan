@@ -131,9 +131,11 @@ impl ApplicationHandler for App {
             return;
         };
 
+        let input_consumed;
+
         let ui_event = {
             let mut ui = self.ui.borrow_mut();
-            ui.window_event(&event, window);
+            input_consumed = ui.window_event(&event, window).is_new();
 
             if let WindowEvent::MouseInput {
                 device_id: _,
@@ -163,16 +165,22 @@ impl ApplicationHandler for App {
             self.explorer.proceed_event(event);
         }
 
+        if input_consumed {
+            return;
+        }
+
         match event {
             WindowEvent::RedrawRequested => {
+                let start = std::time::Instant::now();
                 renderer.borrow_mut().draw_frame();
+                println!("Draw: {:?}", start.elapsed());
             }
             WindowEvent::KeyboardInput {
                 device_id: _,
                 event,
                 is_synthetic: _,
             } => {
-                if let PhysicalKey::Code(key_code) = event.physical_key {
+                if event.state == ElementState::Pressed && let PhysicalKey::Code(key_code) = event.physical_key {
                     match key_code {
                         KeyCode::F1 => {
                             if event.state.is_pressed() {
