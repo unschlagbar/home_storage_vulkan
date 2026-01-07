@@ -205,7 +205,7 @@ impl ApplicationHandler for App {
                     return;
                 }
                 renderer.recreate_swapchain(new_size);
-                window.request_redraw();
+                // The window_event fn will take care of RedrawRequest
             }
             WindowEvent::CloseRequested => event_loop.exit(),
             _ => (),
