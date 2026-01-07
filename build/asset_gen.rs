@@ -13,7 +13,6 @@ macro_rules! generate_assets {
 
 generate_assets! {
     "textures" => UiIcons,
-    "sprites"  => Sprites,
 }
 
 pub fn build() {
