@@ -32,7 +32,7 @@ log = "0.4.29"
 android_logger = "0.15.1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-winit = { version = "0.30.12", default-features = false, features = ["wayland", "rwh_06", "wayland-csd-adwaita"] }
+winit = { version = "0.30.12", default-features = false, features = ["rwh_06", "wayland", "wayland-csd-adwaita", "wayland-dlopen"] }
 
 [target.'cfg(all(not(target_os = "android"), not(target_os = "linux")))'.dependencies]
 winit = { version = "0.30.12" }
