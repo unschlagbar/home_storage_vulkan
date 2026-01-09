@@ -8,16 +8,10 @@ use std::{
     path::Path,
     rc::Rc,
     sync::Arc,
-    thread::sleep,
     time::{Duration, Instant},
 };
 use winit::{
-    application::ApplicationHandler,
-    dpi::PhysicalSize,
-    event::{ElementState, MouseButton, WindowEvent},
-    event_loop::{ActiveEventLoop, ControlFlow},
-    keyboard::{KeyCode, PhysicalKey},
-    window::{Theme, Window, WindowId},
+    application::ApplicationHandler, dpi::PhysicalSize, event::{ElementState, MouseButton, WindowEvent}, event_loop::{ActiveEventLoop, ControlFlow}, keyboard::{KeyCode, PhysicalKey}, window::{Theme, Window, WindowId}
 };
 
 #[cfg(target_os = "windows")]
@@ -44,9 +38,9 @@ pub struct App {
     pub assets: AssetManager,
 
     pub explorer: Explorer,
-    pub time: Instant,
 
-    pub target_frame_time: f32,
+    pub target_frame_time: Duration,
+    pub time: Instant,
 }
 
 impl App {
@@ -62,11 +56,11 @@ impl App {
         Self {
             window: None,
             renderer,
-            time: Instant::now(),
             ui,
             net,
             explorer,
-            target_frame_time: 1.0 / DEFAULT_FPS,
+            target_frame_time: Duration::from_secs_f32(1.0 / DEFAULT_FPS),
+            time: Instant::now(),
         }
     }
 
@@ -96,11 +90,13 @@ impl App {
     fn get_framerate(&mut self, window: &Window) {
         if let Some(monitor) = window.current_monitor() {
             if let Some(refresh_rate) = monitor.refresh_rate_millihertz() {
-                self.target_frame_time = 1000.0 / refresh_rate as f32;
-                //println!("target pfs: {}", refresh_rate / 1000);
+                self.target_frame_time = Duration::from_millis(1 / refresh_rate as u64);
+                println!("target pfs: {:?}", self.target_frame_time);
             } else {
-                println!("Refresh rate not available");
+                println!("Refresh rate not available {:?}", self.target_frame_time);
             }
+        } else {
+            window.available_monitors().for_each(|x| println!("{:?}", x));
         }
     }
 
@@ -134,16 +130,27 @@ impl ApplicationHandler for App {
 
         let input_consumed;
 
-        let ui_event = {
+        let (ui_event, ui_event2) = {
             let mut ui = self.ui.borrow_mut();
             input_consumed = ui.window_event(&event, window).is_new();
+            (ui.get_event(), ui.get_event())
+        };
 
-            if let WindowEvent::MouseInput {
+        if let Some(event) = ui_event {
+            self.explorer.proceed_event(event);
+            if let Some(event) = ui_event2 {
+                self.explorer.proceed_event(event)
+            }
+        }
+
+        match event {
+            WindowEvent::MouseInput {
                 device_id: _,
                 state,
                 button,
-            } = event
+            } =>
             {
+                let mut ui = self.ui.borrow_mut();
                 match (button, state) {
                     (MouseButton::Left, ElementState::Released) => {
                         if self.explorer.mouse_click(&mut ui) {
@@ -157,13 +164,8 @@ impl ApplicationHandler for App {
                     }
                     _ => (),
                 }
-            }
-
-            ui.event.take()
-        };
-
-        if let Some(event) = ui_event {
-            self.explorer.proceed_event(event);
+            },
+            _ => ()
         }
 
         if input_consumed {
@@ -171,18 +173,13 @@ impl ApplicationHandler for App {
         }
 
         match event {
-            WindowEvent::RedrawRequested => {
-                let start = std::time::Instant::now();
-                renderer.borrow_mut().draw_frame();
-                println!("Draw: {:?}", start.elapsed());
-            }
             WindowEvent::KeyboardInput {
                 device_id: _,
                 event,
                 is_synthetic: _,
             } => {
                 if event.state == ElementState::Pressed
-                    && let PhysicalKey::Code(key_code) = event.physical_key
+                && let PhysicalKey::Code(key_code) = event.physical_key
                 {
                     match key_code {
                         KeyCode::F1 => {
@@ -202,6 +199,11 @@ impl ApplicationHandler for App {
                     }
                 }
             }
+            WindowEvent::RedrawRequested => {
+                let start = std::time::Instant::now();
+                renderer.borrow_mut().draw_frame();
+                println!("Draw: {:?}", start.elapsed());
+            }
             WindowEvent::Resized(new_size) => {
                 let mut renderer = renderer.borrow_mut();
                 if new_size == renderer.window_size {
@@ -219,16 +221,12 @@ impl ApplicationHandler for App {
         if let Some(window) = &self.window
             && self.ui.borrow().needs_ticking()
         {
-            event_loop.set_control_flow(ControlFlow::Poll);
-
-            if self.time.elapsed().as_secs_f32() > self.target_frame_time {
-                self.time = Instant::now();
-                self.ui.borrow_mut().process_ticks();
-                if self.ui.borrow().is_dirty() {
-                    window.request_redraw();
-                }
-                sleep(Duration::from_secs_f32(self.target_frame_time * 0.9));
+            self.ui.borrow_mut().process_ticks();
+            if self.ui.borrow().is_dirty() {
+                window.request_redraw();
             }
+
+            event_loop.set_control_flow(ControlFlow::wait_duration(self.target_frame_time));
         } else {
             event_loop.set_control_flow(ControlFlow::Wait);
         }
