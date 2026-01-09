@@ -11,7 +11,12 @@ use std::{
     time::{Duration, Instant},
 };
 use winit::{
-    application::ApplicationHandler, dpi::PhysicalSize, event::{ElementState, MouseButton, WindowEvent}, event_loop::{ActiveEventLoop, ControlFlow}, keyboard::{KeyCode, PhysicalKey}, window::{Theme, Window, WindowId}
+    application::ApplicationHandler,
+    dpi::PhysicalSize,
+    event::{ElementState, MouseButton, WindowEvent},
+    event_loop::{ActiveEventLoop, ControlFlow},
+    keyboard::{KeyCode, PhysicalKey},
+    window::{Theme, Window, WindowId},
 };
 
 #[cfg(target_os = "windows")]
@@ -24,8 +29,10 @@ const APP_NAME: &str = "Home Server";
 const WIDTH: u32 = 1080;
 const HEIGHT: u32 = 720;
 
-pub const VSYNC: bool = true;
-const DEFAULT_FPS: f32 = 144.0;
+pub const VSYNC: bool = false;
+const LIMIT_FPS: bool = true;
+const ONLY_DRAW_ON_UPDATE: bool = true;
+const DEFAULT_FPS: u64 = 60;
 
 pub struct App {
     pub window: Option<Window>,
@@ -59,7 +66,7 @@ impl App {
             ui,
             net,
             explorer,
-            target_frame_time: Duration::from_secs_f32(1.0 / DEFAULT_FPS),
+            target_frame_time: Duration::from_millis(1000 / DEFAULT_FPS),
             time: Instant::now(),
         }
     }
@@ -90,13 +97,23 @@ impl App {
     fn get_framerate(&mut self, window: &Window) {
         if let Some(monitor) = window.current_monitor() {
             if let Some(refresh_rate) = monitor.refresh_rate_millihertz() {
-                self.target_frame_time = Duration::from_millis(1 / refresh_rate as u64);
-                println!("target pfs: {:?}", self.target_frame_time);
+                self.target_frame_time = Duration::from_millis(1000000 / refresh_rate as u64);
+                println!("target frame_time: {:?}", self.target_frame_time);
             } else {
                 println!("Refresh rate not available {:?}", self.target_frame_time);
             }
         } else {
-            window.available_monitors().for_each(|x| println!("{:?}", x));
+            let mut refresh_rate = 60000;
+            window.available_monitors().for_each(|x| {
+                if let Some(x) = x.refresh_rate_millihertz() {
+                    refresh_rate = refresh_rate.max(x);
+                    println!("{:?}", x / 1000);
+                } else {
+                    println!("Refresh rate not available {:?}", self.target_frame_time)
+                }
+            });
+            self.target_frame_time = Duration::from_millis(1000000 / refresh_rate as u64);
+            println!("target frame_time: {:?}", self.target_frame_time);
         }
     }
 
@@ -148,8 +165,7 @@ impl ApplicationHandler for App {
                 device_id: _,
                 state,
                 button,
-            } =>
-            {
+            } => {
                 let mut ui = self.ui.borrow_mut();
                 match (button, state) {
                     (MouseButton::Left, ElementState::Released) => {
@@ -164,8 +180,8 @@ impl ApplicationHandler for App {
                     }
                     _ => (),
                 }
-            },
-            _ => ()
+            }
+            _ => (),
         }
 
         if input_consumed {
@@ -179,7 +195,7 @@ impl ApplicationHandler for App {
                 is_synthetic: _,
             } => {
                 if event.state == ElementState::Pressed
-                && let PhysicalKey::Code(key_code) = event.physical_key
+                    && let PhysicalKey::Code(key_code) = event.physical_key
                 {
                     match key_code {
                         KeyCode::F1 => {
@@ -218,17 +234,29 @@ impl ApplicationHandler for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        if let Some(window) = &self.window
-            && self.ui.borrow().needs_ticking()
-        {
-            self.ui.borrow_mut().process_ticks();
-            if self.ui.borrow().is_dirty() {
-                window.request_redraw();
+        if ONLY_DRAW_ON_UPDATE {
+            if let Some(window) = &self.window {
+                let mut ui = self.ui.borrow_mut();
+                if ui.needs_ticking() {
+                    ui.process_ticks();
+                    if ui.is_dirty() {
+                        window.request_redraw();
+                    }
+                }
+                event_loop.set_control_flow(ControlFlow::wait_duration(self.target_frame_time));
+            }
+        } else {
+            if LIMIT_FPS {
+                event_loop.set_control_flow(ControlFlow::wait_duration(self.target_frame_time));
             }
 
-            event_loop.set_control_flow(ControlFlow::wait_duration(self.target_frame_time));
-        } else {
-            event_loop.set_control_flow(ControlFlow::Wait);
+            if let Some(window) = &self.window {
+                let mut ui = self.ui.borrow_mut();
+                if ui.needs_ticking() {
+                    ui.process_ticks();
+                }
+                window.request_redraw();
+            }
         }
     }
 

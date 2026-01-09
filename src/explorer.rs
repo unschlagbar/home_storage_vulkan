@@ -1,5 +1,5 @@
-use std::{env, u32};
 use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
+use std::env;
 
 use iron_oxide::ui::{Absolute, Align, ElementBuilder, FlexDirection, Image, ScrollPanel, Ticking};
 use iron_oxide::{
@@ -82,7 +82,7 @@ impl Explorer {
                     atlas_index: UiIcons::Back as u32,
                     ..Default::default()
                 }
-                .wrap("back_image"),
+                .wrap_transparent("back_image"),
                 back_button,
             );
 
@@ -186,14 +186,14 @@ impl Explorer {
                                     padding: UiRect::new(3.0),
                                     ..Default::default()
                                 }
-                                .wrap_childs(
+                                .wrap_childs_transparent(
                                     "",
                                     vec![
                                         Image {
                                             atlas_index: icon,
                                             ..Default::default()
                                         }
-                                        .wrap(""),
+                                        .wrap_childs_transparent("", Vec::new()),
                                     ],
                                 ),
                                 Text {
@@ -202,7 +202,7 @@ impl Explorer {
                                     align: Align::Left,
                                     ..Default::default()
                                 }
-                                .wrap(""),
+                                .wrap_childs_transparent("", Vec::new()),
                             ],
                         ),
                         self.content_window,
@@ -376,7 +376,7 @@ impl Explorer {
                                             color: RGBA::grey(220),
                                             ..Default::default()
                                         }
-                                        .wrap(""),
+                                        .wrap_transparent(""),
                                     ],
                                 ),
                                 Button {
@@ -398,7 +398,7 @@ impl Explorer {
 
                                             ..Default::default()
                                         }
-                                        .wrap(""),
+                                        .wrap_transparent(""),
                                     ],
                                 ),
                                 Button {
@@ -419,7 +419,7 @@ impl Explorer {
                                             color: RGBA::grey(220),
                                             ..Default::default()
                                         }
-                                        .wrap(""),
+                                        .wrap_transparent(""),
                                     ],
                                 ),
                             ],
