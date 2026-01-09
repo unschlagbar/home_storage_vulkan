@@ -280,7 +280,8 @@ impl VulkanRender {
 
     fn create_cmd_pool(base: &VkBase) -> vk::CommandPool {
         let pool_info = vk::CommandPoolCreateInfo {
-            flags: vk::CommandPoolCreateFlags::TRANSIENT,
+            flags: vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER
+                | vk::CommandPoolCreateFlags::TRANSIENT,
             queue_family_index: base.queue_family_index,
             ..Default::default()
         };
@@ -334,7 +335,10 @@ impl VulkanRender {
             self.base.device.reset_fences(&[in_flight_fence]).unwrap();
             self.base
                 .device
-                .reset_command_pool(self.cmd_pool, vk::CommandPoolResetFlags::empty())
+                .reset_command_buffer(
+                    self.command_buffers[self.current_frame],
+                    vk::CommandBufferResetFlags::empty(),
+                )
                 .unwrap();
         };
 

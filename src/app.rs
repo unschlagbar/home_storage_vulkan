@@ -5,6 +5,7 @@ use iron_oxide::{graphics::TextureAtlas, ui::Ui};
 
 use std::{
     cell::RefCell,
+    path::Path,
     rc::Rc,
     sync::Arc,
     thread::sleep,
@@ -180,7 +181,9 @@ impl ApplicationHandler for App {
                 event,
                 is_synthetic: _,
             } => {
-                if event.state == ElementState::Pressed && let PhysicalKey::Code(key_code) = event.physical_key {
+                if event.state == ElementState::Pressed
+                    && let PhysicalKey::Code(key_code) = event.physical_key
+                {
                     match key_code {
                         KeyCode::F1 => {
                             if event.state.is_pressed() {
@@ -274,7 +277,9 @@ impl ApplicationHandler for App {
 
         let mut texture_atlas = TextureAtlas::new((1024, 1024));
 
-        texture_atlas.load_directory("assets/textures", &renderer.base, renderer.cmd_pool);
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/textures");
+
+        texture_atlas.load_directory(path, &renderer.base, renderer.cmd_pool);
         {
             let mut ui = self.ui.borrow_mut();
             ui.init_graphics(
