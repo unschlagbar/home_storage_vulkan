@@ -11,8 +11,8 @@ layout(location = 3) in int x;
 layout(location = 4) in int y;
 layout(location = 5) in int width;
 layout(location = 6) in int height;
-layout(location = 7) in float inCorner; 
-layout(location = 8) in float z_index;
+layout(location = 7) in uint inCorner; 
+layout(location = 8) in int z_index;
 
 layout(location = 0) out vec2 fragTexCoord;
 layout(location = 1) out flat vec4 fragColor;

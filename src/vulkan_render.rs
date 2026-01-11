@@ -133,7 +133,7 @@ impl VulkanRender {
             ui_state,
         };
 
-        renderer.update_ui_uniform_buffer();
+        renderer.update_uniform_buffer();
 
         renderer
     }
@@ -164,7 +164,7 @@ impl VulkanRender {
 
         self.swapchain
             .recreate(&self.base, self.render_pass, self.depth_image.view);
-        self.update_ui_uniform_buffer();
+        self.update_uniform_buffer();
 
         self.ui_state.borrow_mut().resize(new_size.into());
     }
@@ -524,14 +524,14 @@ impl VulkanRender {
         )
     }
 
-    fn update_ui_uniform_buffer(&mut self) {
+    fn update_uniform_buffer(&mut self) {
         let ubo = Matrix4::ortho(
             0.0,
             self.window_size.width as f32,
             0.0,
             self.window_size.height as f32,
-            1.0,
-            -1.0,
+            1000.0,
+            -1000.0,
         );
 
         unsafe {
