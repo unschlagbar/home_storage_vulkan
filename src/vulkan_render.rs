@@ -48,7 +48,7 @@ pub struct VulkanRender {
 
     pub depth_image: graphics::Image,
 
-    pub ui_state: Rc<RefCell<Ui>>,
+    pub ui: Rc<RefCell<Ui>>,
 }
 
 impl VulkanRender {
@@ -130,7 +130,7 @@ impl VulkanRender {
             texture_sampler,
             depth_image,
 
-            ui_state,
+            ui: ui_state,
         };
 
         renderer.update_uniform_buffer();
@@ -146,7 +146,7 @@ impl VulkanRender {
             return;
         }
 
-        unsafe { self.base.device.device_wait_idle().unwrap_unchecked() };
+        self.base.device_wait_idle();
         self.depth_image.destroy(&self.base.device);
 
         self.swapchain.update_caps(&self.base, new_size);
@@ -166,7 +166,7 @@ impl VulkanRender {
             .recreate(&self.base, self.render_pass, self.depth_image.view);
         self.update_uniform_buffer();
 
-        self.ui_state.borrow_mut().resize(new_size.into());
+        self.ui.borrow_mut().resize(new_size.into());
     }
 
     fn create_render_pass(
@@ -458,7 +458,7 @@ impl VulkanRender {
             ..Default::default()
         };
 
-        let mut ui = self.ui_state.borrow_mut();
+        let mut ui = self.ui.borrow_mut();
 
         unsafe {
             device
@@ -663,7 +663,7 @@ impl VulkanRender {
                 self.uniform_buffers[i].destroy(device);
             }
 
-            self.ui_state.borrow_mut().destroy(device);
+            self.ui.borrow_mut().destroy(device);
             device.destroy_command_pool(self.cmd_pool, None);
             device.destroy_command_pool(self.single_time_cmd_pool, None);
             device.destroy_render_pass(self.render_pass, None);

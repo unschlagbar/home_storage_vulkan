@@ -209,6 +209,9 @@ impl ApplicationHandler for App {
                         KeyCode::KeyT => {
                             window.set_maximized(true);
                         }
+                        KeyCode::KeyZ => {
+                            window.set_maximized(false);
+                        }
                         KeyCode::KeyU => {
                             window.set_minimized(true);
                         }
@@ -218,7 +221,7 @@ impl ApplicationHandler for App {
             }
             WindowEvent::RedrawRequested => {
                 if DEBUG_PERF {
-                    let start = std::time::Instant::now();
+                    let start = Instant::now();
                     renderer.borrow_mut().draw_frame();
                     println!("Draw: {:?}", start.elapsed());
                 } else {
