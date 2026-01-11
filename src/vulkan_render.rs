@@ -17,7 +17,7 @@ use std::{
 };
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::app::VSYNC;
+use crate::app::{DEBUG_PERF, VSYNC};
 
 // Max frames in flight
 pub const MFIF: usize = 1;
@@ -458,14 +458,20 @@ impl VulkanRender {
             ..Default::default()
         };
 
+        let mut ui = self.ui_state.borrow_mut();
+
         unsafe {
             device
                 .begin_command_buffer(command_buffer, &begin_info)
                 .unwrap();
 
-            self.ui_state
-                .borrow_mut()
-                .update(&self.base, command_buffer);
+            if DEBUG_PERF {
+                let start = Instant::now();
+                ui.update(&self.base, command_buffer);
+                println!("CPU to GPU time: {:?}", start.elapsed());
+            } else {
+                ui.update(&self.base, command_buffer);
+            }
 
             device.cmd_set_scissor(command_buffer, 0, &[scissor]);
             device.cmd_set_viewport(command_buffer, 0, &[view_port]);
@@ -475,7 +481,7 @@ impl VulkanRender {
                 &render_pass_info,
                 vk::SubpassContents::INLINE,
             );
-            self.ui_state.borrow_mut().draw(device, command_buffer);
+            ui.draw(device, command_buffer);
             device.cmd_end_render_pass(command_buffer);
 
             device.end_command_buffer(command_buffer).unwrap();

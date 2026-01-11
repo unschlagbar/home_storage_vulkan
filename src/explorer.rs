@@ -1,7 +1,9 @@
-use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 use std::env;
+use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
-use iron_oxide::ui::{Absolute, Align, ElementBuilder, FlexDirection, Image, ScrollPanel, Ticking};
+use iron_oxide::ui::{
+    Absolute, Align, ElementBuilder, FlexDirection, Image, ScrollPanel, TextExitContext, Ticking,
+};
 use iron_oxide::{
     graphics::formats::RGBA,
     ui::{
@@ -45,7 +47,7 @@ impl Explorer {
                 .id();
 
             let nav_bar = ui
-                .add_child_to(
+                .add_child(
                     Container {
                         color: RGBA::grey(25),
                         width: Fill,
@@ -60,7 +62,7 @@ impl Explorer {
 
             //Back Button
             let back_button = ui
-                .add_child_to(
+                .add_child(
                     Button {
                         color: RGBA::ZERO,
                         width: Px(34.0),
@@ -77,7 +79,7 @@ impl Explorer {
                 .unwrap()
                 .id();
 
-            ui.add_child_to(
+            ui.add_child(
                 Image {
                     atlas_index: UiIcons::Back as u32,
                     ..Default::default()
@@ -87,7 +89,7 @@ impl Explorer {
             );
 
             let content = ui
-                .add_child_to(
+                .add_child(
                     Container {
                         color: RGBA::grey(30),
                         width: Fill,
@@ -103,7 +105,7 @@ impl Explorer {
                 .unwrap()
                 .id();
 
-            ui.add_child_to(
+            ui.add_child(
                 ScrollPanel {
                     padding: UiRect::new(2.0),
                     ..Default::default()
@@ -161,56 +163,56 @@ impl Explorer {
                         ("file", icon)
                     };
 
-                    ui.add_child_to(
-                        Button {
-                            color: RGBA::ZERO,
-                            border_color: RGBA::GREEN,
-                            height: Auto,
-                            width: Fill,
-                            flex_direction: FlexDirection::Horizontal,
-                            padding: UiRect::horizontal(Px(2.0)),
-                            corner: [Px(5.0); 4],
-                            callback: Some(on_click),
-                            cursor: CursorIcon::Default,
-                            message: OPEN,
-                            ..Default::default()
-                        }
-                        .wrap_childs(
-                            element_name,
-                            vec![
-                                Container {
-                                    height: Px(30.0),
-                                    width: Px(30.0),
-                                    margin: UiRect::from(&[0.0, 0.0, 6.0, 0.0]),
-                                    color: RGBA::TRANSPARENT,
-                                    padding: UiRect::new(3.0),
-                                    ..Default::default()
-                                }
-                                .wrap_childs_transparent(
-                                    "",
-                                    vec![
-                                        Image {
-                                            atlas_index: icon,
-                                            ..Default::default()
-                                        }
-                                        .wrap_childs_transparent("", Vec::new()),
-                                    ],
-                                ),
-                                Text {
-                                    color: RGBA::grey(220),
-                                    text: name,
-                                    align: Align::Left,
-                                    ..Default::default()
-                                }
-                                .wrap_childs_transparent("", Vec::new()),
-                            ],
-                        ),
-                        self.content_window,
+                    let button = Button {
+                        color: RGBA::ZERO,
+                        border_color: RGBA::GREEN,
+                        height: Auto,
+                        width: Fill,
+                        flex_direction: FlexDirection::Horizontal,
+                        padding: UiRect::horizontal(Px(2.0)),
+                        corner: [Px(5.0); 4],
+                        callback: Some(on_click),
+                        cursor: CursorIcon::Default,
+                        message: OPEN,
+                        ..Default::default()
+                    }
+                    .wrap_childs(
+                        element_name,
+                        vec![
+                            Container {
+                                height: Px(30.0),
+                                width: Px(30.0),
+                                margin: UiRect::from(&[0.0, 0.0, 6.0, 0.0]),
+                                color: RGBA::TRANSPARENT,
+                                padding: UiRect::new(3.0),
+                                ..Default::default()
+                            }
+                            .wrap_childs_transparent(
+                                "image container",
+                                vec![
+                                    Image {
+                                        atlas_index: icon,
+                                        ..Default::default()
+                                    }
+                                    .wrap_childs_transparent("", Vec::new()),
+                                ],
+                            ),
+                            Text {
+                                color: RGBA::grey(220),
+                                text: name,
+                                align: Align::Left,
+                                on_blur: Some(on_submit),
+                                ..Default::default()
+                            }
+                            .wrap_childs_transparent("text", Vec::new()),
+                        ],
                     );
+
+                    ui.add_child(button, self.content_window);
                 }
 
                 if is_empty {
-                    ui.add_child_to(
+                    ui.add_child(
                         Container {
                             color: RGBA::ZERO,
                             height: Px(50.0),
@@ -319,8 +321,8 @@ impl Explorer {
                         container.border = [1; 4];
                         container.callback = None;
 
-                        let child = &selected.child(1).unwrap();
-                        Text::focus(&mut ui, child, 0..0);
+                        let child = selected.child(1).unwrap();
+                        Text::focus(&mut ui, child);
                     }
                     name => println!("{name}"),
                 },
@@ -336,96 +338,99 @@ impl Explorer {
                 self.hovered_element = hovered.id();
                 self.selected_file = hovered.id();
 
-                if self.tool_tip != u32::MAX {
-                    ui.remove_element(self.tool_tip);
-                }
-
                 let x = Px(ui.cursor_pos.x);
                 let y = Px(ui.cursor_pos.y);
 
-                self.tool_tip = ui
-                    .add_child_to_root(
-                        Absolute {
-                            x,
-                            y,
-                            width: Px(200.0),
-                            height: Auto,
-                            padding: UiRect::new(2.0),
-                            color: RGBA::grey(50),
-                            corner: [Px(7.0); 4],
-                            ..Default::default()
-                        }
-                        .wrap_childs(
-                            "",
-                            vec![
-                                Button {
-                                    width: Fill,
-                                    height: Px(30.0),
-                                    color: RGBA::ZERO,
-                                    border_color: RGBA::BLUE,
-                                    corner: [Px(5.0); 4],
-                                    callback: Some(on_click_tooltip),
-                                    message: ENTRY_ACTION,
-                                    ..Default::default()
-                                }
-                                .wrap_childs(
-                                    "open",
-                                    vec![
-                                        Text {
-                                            text: "Öffnen".to_string(),
-                                            color: RGBA::grey(220),
-                                            ..Default::default()
-                                        }
-                                        .wrap_transparent(""),
-                                    ],
-                                ),
-                                Button {
-                                    width: Fill,
-                                    height: Px(30.0),
-                                    color: RGBA::ZERO,
-                                    border_color: RGBA::BLUE,
-                                    corner: [Px(5.0); 4],
-                                    callback: Some(on_click_tooltip),
-                                    message: ENTRY_ACTION,
-                                    ..Default::default()
-                                }
-                                .wrap_childs(
-                                    "rename",
-                                    vec![
-                                        Text {
-                                            text: "Umbennenen".to_string(),
-                                            color: RGBA::grey(220),
+                if self.tool_tip != u32::MAX {
+                    let tools = ui.get_element_mut(self.tool_tip).unwrap();
+                    let abs = tools.downcast_mut::<Absolute>().unwrap();
+                    abs.x = x;
+                    abs.y = y
+                } else {
+                    self.tool_tip = ui
+                        .add_child_to_root(
+                            Absolute {
+                                x,
+                                y,
+                                width: Px(200.0),
+                                height: Auto,
+                                padding: UiRect::new(2.0),
+                                color: RGBA::grey(50),
+                                corner: [Px(7.0); 4],
+                                ..Default::default()
+                            }
+                            .wrap_childs(
+                                "",
+                                vec![
+                                    Button {
+                                        width: Fill,
+                                        height: Px(30.0),
+                                        color: RGBA::ZERO,
+                                        border_color: RGBA::BLUE,
+                                        corner: [Px(5.0); 4],
+                                        callback: Some(on_click_tooltip),
+                                        message: ENTRY_ACTION,
+                                        ..Default::default()
+                                    }
+                                    .wrap_childs(
+                                        "open",
+                                        vec![
+                                            Text {
+                                                text: "Öffnen".to_string(),
+                                                color: RGBA::grey(220),
+                                                ..Default::default()
+                                            }
+                                            .wrap_transparent(""),
+                                        ],
+                                    ),
+                                    Button {
+                                        width: Fill,
+                                        height: Px(30.0),
+                                        color: RGBA::ZERO,
+                                        border_color: RGBA::BLUE,
+                                        corner: [Px(5.0); 4],
+                                        callback: Some(on_click_tooltip),
+                                        message: ENTRY_ACTION,
+                                        ..Default::default()
+                                    }
+                                    .wrap_childs(
+                                        "rename",
+                                        vec![
+                                            Text {
+                                                text: "Umbennenen".to_string(),
+                                                color: RGBA::grey(220),
 
-                                            ..Default::default()
-                                        }
-                                        .wrap_transparent(""),
-                                    ],
-                                ),
-                                Button {
-                                    width: Relative(1.0),
-                                    height: Px(30.0),
-                                    color: RGBA::ZERO,
-                                    border_color: RGBA::BLUE,
-                                    corner: [Px(5.0); 4],
-                                    callback: Some(on_click_tooltip),
-                                    message: ENTRY_ACTION,
-                                    ..Default::default()
-                                }
-                                .wrap_childs(
-                                    "delete",
-                                    vec![
-                                        Text {
-                                            text: "Löschen".to_string(),
-                                            color: RGBA::grey(220),
-                                            ..Default::default()
-                                        }
-                                        .wrap_transparent(""),
-                                    ],
-                                ),
-                            ],
-                        ),
-                    )
-                    .id();
+                                                ..Default::default()
+                                            }
+                                            .wrap_transparent(""),
+                                        ],
+                                    ),
+                                    Button {
+                                        width: Relative(1.0),
+                                        height: Px(30.0),
+                                        color: RGBA::ZERO,
+                                        border_color: RGBA::BLUE,
+                                        corner: [Px(5.0); 4],
+                                        callback: Some(on_click_tooltip),
+                                        message: ENTRY_ACTION,
+                                        ..Default::default()
+                                    }
+                                    .wrap_childs(
+                                        "delete",
+                                        vec![
+                                            Text {
+                                                text: "Löschen".to_string(),
+                                                color: RGBA::grey(220),
+                                                ..Default::default()
+                                            }
+                                            .wrap_transparent(""),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        )
+                        .id();
+                }
             }
             ui.layout_changed();
             true
@@ -447,7 +452,7 @@ impl Explorer {
     }
 }
 
-fn on_click(context: ButtonContext) {
+fn on_click(mut context: ButtonContext) {
     let button: &mut Button = context.element.get_mut(context.ui).downcast_mut().unwrap();
 
     match button.state {
@@ -465,7 +470,7 @@ fn on_click(context: ButtonContext) {
     context.ui.color_changed();
 }
 
-fn on_click_tooltip(context: ButtonContext) {
+fn on_click_tooltip(mut context: ButtonContext) {
     let button: &mut Button = context.element.get_mut(context.ui).downcast_mut().unwrap();
 
     match button.state {
@@ -491,4 +496,15 @@ fn tick_error(context: ButtonContext) {
     if this.last_tick.elapsed().as_secs_f32() > 1.0 {
         context.ui.remove_element(context.element);
     }
+}
+
+fn on_submit(context: TextExitContext) {
+    let element = context.element;
+    let parent = element.parent.unwrap().get_mut(context.ui);
+
+    let container: &mut Button = parent.downcast_mut().unwrap();
+    container.border = [0; 4];
+    container.callback = Some(on_click);
+
+    context.ui.color_changed();
 }

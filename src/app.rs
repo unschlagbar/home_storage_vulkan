@@ -34,6 +34,8 @@ const LIMIT_FPS: bool = true;
 const ONLY_DRAW_ON_UPDATE: bool = true;
 const DEFAULT_FPS: u64 = 60;
 
+pub const DEBUG_PERF: bool = false;
+
 pub struct App {
     pub window: Option<Window>,
     pub renderer: Option<Rc<RefCell<VulkanRender>>>,
@@ -107,7 +109,6 @@ impl App {
             window.available_monitors().for_each(|x| {
                 if let Some(x) = x.refresh_rate_millihertz() {
                     refresh_rate = refresh_rate.max(x);
-                    println!("{:?}", x / 1000);
                 } else {
                     println!("Refresh rate not available {:?}", self.target_frame_time)
                 }
@@ -216,9 +217,13 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::RedrawRequested => {
-                let start = std::time::Instant::now();
-                renderer.borrow_mut().draw_frame();
-                println!("Draw: {:?}", start.elapsed());
+                if DEBUG_PERF {
+                    let start = std::time::Instant::now();
+                    renderer.borrow_mut().draw_frame();
+                    println!("Draw: {:?}", start.elapsed());
+                } else {
+                    renderer.borrow_mut().draw_frame();
+                }
             }
             WindowEvent::Resized(new_size) => {
                 let mut renderer = renderer.borrow_mut();
@@ -325,7 +330,9 @@ impl ApplicationHandler for App {
         window.set_visible(true);
 
         self.window = Some(window);
-        println!("window time: {:?}", self.time.elapsed());
+        if DEBUG_PERF {
+            println!("window time: {:?}", self.time.elapsed());
+        }
         self.time = Instant::now();
     }
 
