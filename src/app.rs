@@ -1,11 +1,10 @@
 #![allow(clippy::collapsible_match)]
 #![allow(clippy::single_match)]
 use crate::{explorer::Explorer, network::Network, vulkan_render::VulkanRender};
-use iron_oxide::{graphics::TextureAtlas, ui::Ui};
+use iron_oxide::ui::Ui;
 
 use std::{
     cell::RefCell,
-    path::Path,
     rc::Rc,
     sync::Arc,
     time::{Duration, Instant},
@@ -16,7 +15,7 @@ use winit::{
     event::{ElementState, MouseButton, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow},
     keyboard::{KeyCode, PhysicalKey},
-    window::{Theme, Window, WindowId},
+    window::{Fullscreen, Theme, Window, WindowId},
 };
 
 #[cfg(target_os = "windows")]
@@ -206,6 +205,13 @@ impl ApplicationHandler for App {
                                 window.request_redraw();
                             }
                         }
+                        KeyCode::F11 => {
+                            if window.fullscreen().is_none() {
+                                window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                            } else {
+                                window.set_fullscreen(None);
+                            }
+                        }
                         KeyCode::KeyT => {
                             window.set_maximized(true);
                         }
@@ -279,56 +285,24 @@ impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         println!("resumed");
 
-        let window = self.create_window(event_loop);
-        self.get_framerate(&window);
+        let window = if let Some(window) = self.window.take() {
+            window
+        } else {
+            let window = self.create_window(event_loop);
+            self.get_framerate(&window);
+            window
+        };
 
-        let renderer = if let Some(renderer) = &self.renderer {
+        if let Some(renderer) = &self.renderer {
             renderer.replace(VulkanRender::create(&window, self.ui.clone()));
-            renderer
         } else {
             self.renderer = Some(Rc::new(RefCell::new(VulkanRender::create(
                 &window,
                 self.ui.clone(),
             ))));
-            self.renderer.as_ref().unwrap()
-        }
-        .borrow_mut();
+        };
 
-        let base_shaders = (
-            include_bytes!("../spv/basic.vert.spv").as_ref(),
-            include_bytes!("../spv/basic.frag.spv").as_ref(),
-        );
-
-        let font_shaders = (
-            include_bytes!("../spv/atlas_texture.vert.spv").as_ref(),
-            include_bytes!("../spv/bitmap.frag.spv").as_ref(),
-        );
-
-        let atlas_shaders = (
-            include_bytes!("../spv/atlas_texture.vert.spv").as_ref(),
-            include_bytes!("../spv/atlas_texture.frag.spv").as_ref(),
-        );
-
-        let mut texture_atlas = TextureAtlas::new((1024, 1024));
-
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/textures");
-
-        texture_atlas.load_directory(path, &renderer.base, renderer.cmd_pool);
-        {
-            let mut ui = self.ui.borrow_mut();
-            ui.init_graphics(
-                &renderer.base,
-                texture_atlas,
-                renderer.window_size,
-                renderer.render_pass,
-                &renderer.uniform_buffers[0],
-                renderer.font_atlas.view,
-                renderer.texture_sampler,
-                base_shaders,
-                font_shaders,
-                atlas_shaders,
-            );
-        }
+        self.ui.borrow_mut().resize(window.inner_size().into());
 
         window.set_visible(true);
 

@@ -1,15 +1,19 @@
 #![allow(clippy::modulo_one)]
 use ash::vk::{
-    self, AccessFlags, CompareOp, Extent3D, Format, ImageUsageFlags, MemoryPropertyFlags,
-    PipelineStageFlags, ShaderStageFlags,
+    self, AccessFlags, CompareOp, DescriptorSet, Extent3D, Format, ImageUsageFlags,
+    MemoryPropertyFlags, PipelineStageFlags,
 };
 use iron_oxide::{
-    graphics::{self, Buffer, SinlgeTimeCommands, Swapchain, VkBase},
+    graphics::{self, Buffer, SinlgeTimeCommands, Swapchain, TextureAtlas, VkBase},
     primitives::Matrix4,
-    ui::Ui,
+    ui::{
+        Ressources, Ui,
+        materials::{AtlasInstance, FontInstance, Material, UiInstance},
+    },
 };
 use std::{
     cell::RefCell,
+    path::Path,
     ptr,
     rc::Rc,
     thread::sleep,
@@ -49,6 +53,7 @@ pub struct VulkanRender {
     pub depth_image: graphics::Image,
 
     pub ui: Rc<RefCell<Ui>>,
+    pub ressources: Ressources,
 }
 
 impl VulkanRender {
@@ -104,6 +109,73 @@ impl VulkanRender {
         let (image_available_semaphores, render_finsih_semaphores, in_flight_fences) =
             Self::create_sync_object(&base.device, swapchain.image_views.len());
 
+        let mut texture_atlas = TextureAtlas::new((1024, 1024));
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/textures");
+        texture_atlas.load_directory(path, &base, cmd_pool);
+
+        let mut ressources = Ressources::new(&base, texture_atlas);
+
+        let base_shaders = (
+            include_bytes!("../spv/basic.vert.spv").as_ref(),
+            include_bytes!("../spv/basic.frag.spv").as_ref(),
+        );
+
+        let font_shaders = (
+            include_bytes!("../spv/atlas_texture.vert.spv").as_ref(),
+            include_bytes!("../spv/bitmap.frag.spv").as_ref(),
+        );
+
+        let atlas_shaders = (
+            include_bytes!("../spv/atlas_texture.vert.spv").as_ref(),
+            include_bytes!("../spv/atlas_texture.frag.spv").as_ref(),
+        );
+
+        {
+            let ubo_layout = Ui::create_ubo_desc_layout(&base.device);
+            let img_layout = Ui::create_img_desc_layout(&base.device);
+
+            ressources.create_desc_sets(
+                &base.device,
+                &[ubo_layout, img_layout, img_layout],
+                &uniform_buffers[0],
+                font_atlas.view,
+                ressources.texture_atlas.atlas.as_ref().unwrap().view,
+                texture_sampler,
+            );
+
+            ressources.add_mat(Material::new::<UiInstance>(
+                &base,
+                window_size,
+                render_pass,
+                &[ubo_layout],
+                DescriptorSet::null(),
+                base_shaders,
+            ));
+
+            ressources.add_mat(Material::new::<FontInstance>(
+                &base,
+                window_size,
+                render_pass,
+                &[ubo_layout, img_layout],
+                ressources.img_set,
+                font_shaders,
+            ));
+
+            ressources.add_mat(Material::new::<AtlasInstance>(
+                &base,
+                window_size,
+                render_pass,
+                &[ubo_layout, img_layout],
+                ressources.atl_set,
+                atlas_shaders,
+            ));
+
+            unsafe {
+                base.device.destroy_descriptor_set_layout(ubo_layout, None);
+                base.device.destroy_descriptor_set_layout(img_layout, None);
+            }
+        }
+
         println!("Vulkan time: {:?}", start_time.elapsed());
 
         let mut renderer = Self {
@@ -131,6 +203,7 @@ impl VulkanRender {
             depth_image,
 
             ui: ui_state,
+            ressources,
         };
 
         renderer.update_uniform_buffer();
@@ -460,18 +533,18 @@ impl VulkanRender {
 
         let mut ui = self.ui.borrow_mut();
 
+        if DEBUG_PERF {
+            let start = Instant::now();
+            ui.update(&self.base, &mut self.ressources);
+            println!("CPU to GPU time: {:?}", start.elapsed());
+        } else {
+            ui.update(&self.base, &mut self.ressources);
+        }
+
         unsafe {
             device
                 .begin_command_buffer(command_buffer, &begin_info)
                 .unwrap();
-
-            if DEBUG_PERF {
-                let start = Instant::now();
-                ui.update(&self.base, command_buffer);
-                println!("CPU to GPU time: {:?}", start.elapsed());
-            } else {
-                ui.update(&self.base, command_buffer);
-            }
 
             device.cmd_set_scissor(command_buffer, 0, &[scissor]);
             device.cmd_set_viewport(command_buffer, 0, &[view_port]);
@@ -481,7 +554,18 @@ impl VulkanRender {
                 &render_pass_info,
                 vk::SubpassContents::INLINE,
             );
-            ui.draw(device, command_buffer);
+
+            device.cmd_bind_descriptor_sets(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                self.ressources.materials[0].pipeline.layout,
+                0,
+                &[self.ressources.ubo_set],
+                &[],
+            );
+
+            self.ressources.draw(device, command_buffer, scissor);
+
             device.cmd_end_render_pass(command_buffer);
 
             device.end_command_buffer(command_buffer).unwrap();
@@ -663,7 +747,8 @@ impl VulkanRender {
                 self.uniform_buffers[i].destroy(device);
             }
 
-            self.ui.borrow_mut().destroy(device);
+            self.ui.borrow_mut();
+            self.ressources.destroy(&self.base);
             device.destroy_command_pool(self.cmd_pool, None);
             device.destroy_command_pool(self.single_time_cmd_pool, None);
             device.destroy_render_pass(self.render_pass, None);
@@ -675,100 +760,4 @@ impl VulkanRender {
             self.base.instance.destroy_instance(None);
         };
     }
-}
-
-fn _create_ui_descriptor_set_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
-    let ubo_layout_binding = vk::DescriptorSetLayoutBinding {
-        binding: 0,
-        descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
-        descriptor_count: 1,
-        stage_flags: ShaderStageFlags::VERTEX,
-        ..Default::default()
-    };
-
-    let sampler_layout_binding = vk::DescriptorSetLayoutBinding {
-        binding: 1,
-        descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-        descriptor_count: 1,
-        stage_flags: ShaderStageFlags::FRAGMENT,
-        ..Default::default()
-    };
-
-    let bindings = [ubo_layout_binding, sampler_layout_binding];
-
-    let layout_info = vk::DescriptorSetLayoutCreateInfo {
-        binding_count: bindings.len() as _,
-        p_bindings: bindings.as_ptr(),
-        ..Default::default()
-    };
-
-    unsafe {
-        device
-            .create_descriptor_set_layout(&layout_info, None)
-            .unwrap()
-    }
-}
-
-fn _create_descriptor_sets(
-    device: &ash::Device,
-    descriptor_pool: vk::DescriptorPool,
-    descriptor_set_layout: vk::DescriptorSetLayout,
-    uniform_buffers: &[Buffer],
-    textures_sampler: vk::Sampler,
-    texture_image_views: &[vk::ImageView],
-    ubo_size: u64,
-) -> Vec<vk::DescriptorSet> {
-    let layouts = [descriptor_set_layout; MFIF];
-
-    let allocate_info = vk::DescriptorSetAllocateInfo {
-        descriptor_pool,
-        descriptor_set_count: MFIF as u32,
-        p_set_layouts: layouts.as_ptr(),
-        ..Default::default()
-    };
-
-    let descriptor_sets = unsafe { device.allocate_descriptor_sets(&allocate_info).unwrap() };
-
-    for i in 0..MFIF {
-        let buffer_info = vk::DescriptorBufferInfo {
-            buffer: uniform_buffers[i].inner,
-            offset: 0,
-            range: ubo_size,
-        };
-
-        let mut image_infos = Vec::with_capacity(texture_image_views.len());
-
-        for image_view in texture_image_views {
-            image_infos.push(vk::DescriptorImageInfo {
-                sampler: textures_sampler,
-                image_view: *image_view,
-                image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-            });
-        }
-
-        let descriptor_writes = [
-            vk::WriteDescriptorSet {
-                dst_set: descriptor_sets[i],
-                dst_binding: 0,
-                dst_array_element: 0,
-                descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
-                descriptor_count: 1,
-                p_buffer_info: &buffer_info,
-                ..Default::default()
-            },
-            vk::WriteDescriptorSet {
-                dst_set: descriptor_sets[i],
-                dst_binding: 1,
-                dst_array_element: 0,
-                descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                descriptor_count: image_infos.len() as _,
-                p_image_info: image_infos.as_ptr(),
-                ..Default::default()
-            },
-        ];
-
-        unsafe { device.update_descriptor_sets(&descriptor_writes, &[]) };
-    }
-
-    descriptor_sets
 }

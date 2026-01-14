@@ -326,7 +326,6 @@ impl Explorer {
                     }
                     name => println!("{name}"),
                 },
-
                 _ => unreachable!(),
             }
         }
