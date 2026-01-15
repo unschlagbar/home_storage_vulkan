@@ -1,18 +1,19 @@
 #![allow(clippy::modulo_one)]
 use ash::vk::{
-    self, AccessFlags, CompareOp, DescriptorSet, Extent3D, Format, ImageUsageFlags,
-    MemoryPropertyFlags, PipelineStageFlags,
+    self, AccessFlags, Buffer, BufferUsageFlags, CompareOp, DescriptorSet, Extent3D, Format,
+    ImageUsageFlags, MemoryPropertyFlags, PipelineStageFlags,
 };
 use iron_oxide::{
-    graphics::{self, Buffer, SinlgeTimeCommands, Swapchain, TextureAtlas, VkBase},
+    graphics::{self, Material, SinlgeTimeCommands, Swapchain, TextureAtlas, VkBase},
     primitives::Matrix4,
     ui::{
         Ressources, Ui,
-        materials::{AtlasInstance, FontInstance, Material, UiInstance},
+        materials::{AtlasInstance, FontInstance, ShadowInstance, UiInstance},
     },
 };
 use std::{
     cell::RefCell,
+    io::Cursor,
     path::Path,
     ptr,
     rc::Rc,
@@ -101,8 +102,6 @@ impl VulkanRender {
 
         font_atlas.create_view(&base, vk::ImageAspectFlags::COLOR);
 
-        let (uniform_buffers, uniform_buffers_mapped) = Buffer::create_uniform(&base);
-
         let texture_sampler = Self::create_texture_sampler(&base.device);
 
         let command_buffers = Self::create_command_buffers(&base.device, cmd_pool);
@@ -114,6 +113,11 @@ impl VulkanRender {
         texture_atlas.load_directory(path, &base, cmd_pool);
 
         let mut ressources = Ressources::new(&base, texture_atlas);
+        
+        let shadow_shaders = (
+            include_bytes!("../spv/shadow.vert.spv").as_ref(),
+            include_bytes!("../spv/shadow.frag.spv").as_ref(),
+        );
 
         let base_shaders = (
             include_bytes!("../spv/basic.vert.spv").as_ref(),
@@ -129,6 +133,24 @@ impl VulkanRender {
             include_bytes!("../spv/atlas_texture.vert.spv").as_ref(),
             include_bytes!("../spv/atlas_texture.frag.spv").as_ref(),
         );
+        let mut uniform_buffers = [vk::Buffer::null(); MFIF];
+        let mut uniform_buffers_mapped = [ptr::null_mut(); MFIF];
+
+        for (i, (buffer, buffer_mapped)) in uniform_buffers
+            .iter_mut()
+            .zip(&mut uniform_buffers_mapped)
+            .enumerate()
+        {
+            let buffer_size;
+            (*buffer, buffer_size) = ressources.buffer_manager.create_buffer(
+                &base,
+                size_of::<Matrix4>() as u64,
+                BufferUsageFlags::UNIFORM_BUFFER,
+            );
+
+            let mem = &ressources.buffer_manager.memory_pool[0];
+            *buffer_mapped = mem.get_ptr(buffer_size as usize * i) as _
+        }
 
         {
             let ubo_layout = Ui::create_ubo_desc_layout(&base.device);
@@ -137,7 +159,7 @@ impl VulkanRender {
             ressources.create_desc_sets(
                 &base.device,
                 &[ubo_layout, img_layout, img_layout],
-                &uniform_buffers[0],
+                uniform_buffers[0],
                 font_atlas.view,
                 ressources.texture_atlas.atlas.as_ref().unwrap().view,
                 texture_sampler,
@@ -149,6 +171,7 @@ impl VulkanRender {
                 render_pass,
                 &[ubo_layout],
                 DescriptorSet::null(),
+                false,
                 base_shaders,
             ));
 
@@ -158,7 +181,20 @@ impl VulkanRender {
                 render_pass,
                 &[ubo_layout, img_layout],
                 ressources.img_set,
+                false,
+
                 font_shaders,
+            ));
+
+            ressources.add_mat(Material::new::<ShadowInstance>(
+                &base,
+                window_size,
+                render_pass,
+                &[ubo_layout],
+                DescriptorSet::null(),
+                true,
+
+                shadow_shaders,
             ));
 
             ressources.add_mat(Material::new::<AtlasInstance>(
@@ -167,6 +203,8 @@ impl VulkanRender {
                 render_pass,
                 &[ubo_layout, img_layout],
                 ressources.atl_set,
+                false,
+
                 atlas_shaders,
             ));
 
@@ -535,10 +573,10 @@ impl VulkanRender {
 
         if DEBUG_PERF {
             let start = Instant::now();
-            ui.update(&self.base, &mut self.ressources);
+            ui.update(&self.base, &mut self.ressources, MFIF);
             println!("CPU to GPU time: {:?}", start.elapsed());
         } else {
-            ui.update(&self.base, &mut self.ressources);
+            ui.update(&self.base, &mut self.ressources, MFIF);
         }
 
         unsafe {
@@ -625,9 +663,11 @@ impl VulkanRender {
         }
     }
 
-    fn create_font_atlas(base: &VkBase, cmd_buf: vk::CommandBuffer) -> (graphics::Image, Buffer) {
-        let decoder =
-            png::Decoder::new(std::io::Cursor::new(include_bytes!("../font/default8.png")));
+    fn create_font_atlas(
+        base: &VkBase,
+        cmd_buf: vk::CommandBuffer,
+    ) -> (graphics::Image, graphics::Buffer) {
+        let decoder = png::Decoder::new(Cursor::new(include_bytes!("../font/default8.png")));
 
         let mut reader = decoder.read_info().unwrap();
         let mut buf = vec![0; reader.output_buffer_size().unwrap()];
@@ -641,7 +681,7 @@ impl VulkanRender {
             depth: 1,
         };
 
-        let staging_buffer = Buffer::create(
+        let staging_buffer = graphics::Buffer::create(
             base,
             image_size,
             vk::BufferUsageFlags::TRANSFER_SRC,
@@ -744,10 +784,8 @@ impl VulkanRender {
             for i in 0..MFIF {
                 device.destroy_semaphore(self.image_available_semaphores[i], None);
                 device.destroy_fence(self.in_flight_fences[i], None);
-                self.uniform_buffers[i].destroy(device);
             }
 
-            self.ui.borrow_mut();
             self.ressources.destroy(&self.base);
             device.destroy_command_pool(self.cmd_pool, None);
             device.destroy_command_pool(self.single_time_cmd_pool, None);

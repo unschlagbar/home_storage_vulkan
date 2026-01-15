@@ -2,7 +2,7 @@
 
 layout(binding = 0) uniform UniformBufferObject {
     mat4 view_proj;
-} ubo;
+};
 
 layout(location = 0) in vec4 inColor;
 layout(location = 1) in vec4 inBorderColor;
@@ -23,8 +23,8 @@ layout(location = 5) out flat vec4 fragBorder;
 layout(location = 6) out flat float fragCorner;
 
 void main() {
-    vec2 uv = vec2(((gl_VertexIndex << 1) & 2) >> 1, (gl_VertexIndex & 2) >> 1);
-    gl_Position = ubo.view_proj * vec4(vec2(x, y) + vec2(width, height) * uv, z_index, 1.0);
+    vec2 uv = vec2((gl_VertexIndex << 1 & 2) >> 1, (gl_VertexIndex & 2) >> 1);
+    gl_Position = view_proj * vec4(vec2(x, y) + vec2(width, height) * uv, z_index, 1.0);
     
     fragTexCoord = uv * vec2(width, height);
     fragColor = inColor;

@@ -2,7 +2,7 @@ use std::env;
 use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
 use iron_oxide::ui::{
-    Absolute, Align, ElementBuilder, FlexDirection, Image, ScrollPanel, TextExitContext, Ticking,
+    Absolute, Align, ElementBuilder, FlexDirection, Image, ScrollPanel, Shadow, TextExitContext, Ticking
 };
 use iron_oxide::{
     graphics::formats::RGBA,
@@ -244,8 +244,8 @@ impl Explorer {
                 let e_message = Ticking {
                     inner: Absolute {
                         color: RGBA::grey(50),
-                        x: Px(ui.cursor_pos.x),
-                        y: Px(ui.cursor_pos.y),
+                        x: Px(ui.cursor_pos.x.into()),
+                        y: Px(ui.cursor_pos.y.into()),
                         border: [1; 4],
                         width: Auto,
                         height: Auto,
@@ -337,8 +337,8 @@ impl Explorer {
                 self.hovered_element = hovered.id();
                 self.selected_file = hovered.id();
 
-                let x = Px(ui.cursor_pos.x);
-                let y = Px(ui.cursor_pos.y);
+                let x = Px(ui.cursor_pos.x.into());
+                let y = Px(ui.cursor_pos.y.into());
 
                 if self.tool_tip != u32::MAX {
                     let tools = ui.get_element_mut(self.tool_tip).unwrap();
@@ -356,6 +356,7 @@ impl Explorer {
                                 padding: UiRect::new(2.0),
                                 color: RGBA::grey(50),
                                 corner: [Px(7.0); 4],
+                                shadow: Shadow::new(15, RGBA::rgba(25, 25, 25, 200)),
                                 ..Default::default()
                             }
                             .wrap_childs(
