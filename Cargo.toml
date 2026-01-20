@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 iron_oxide = { path = "../iron_oxide", features = ["vulkan"]}
-ash = { version = "0.38.0" }
+ash = {version = "0.38.0", default-features = false, features = ["debug", "std", "linked"]}
 png = "0.18.0"
 rand = "0.9.2"
 
@@ -27,4 +27,4 @@ winit = { version = "0.30.12", default-features = false, features = ["rwh_06", "
 winit = { version = "0.30.12" }
 
 [features]
-linked = ["iron_oxide/linked"]
+loaded = ["iron_oxide/loaded"]

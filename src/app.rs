@@ -18,6 +18,9 @@ use winit::{
     window::{Fullscreen, Theme, Window, WindowId},
 };
 
+#[cfg(target_os = "linux")]
+use winit::platform::wayland::WindowAttributesExtWayland;
+
 #[cfg(target_os = "windows")]
 use winit::platform::windows::{CornerPreference, WindowAttributesExtWindows};
 
@@ -33,7 +36,7 @@ const LIMIT_FPS: bool = true;
 const ONLY_DRAW_ON_UPDATE: bool = true;
 const DEFAULT_FPS: u64 = 60;
 
-pub const DEBUG_PERF: bool = true;
+pub const DEBUG_PERF: bool = false;
 
 pub struct App {
     pub window: Option<Window>,
@@ -98,13 +101,13 @@ impl App {
     fn get_framerate(&mut self, window: &Window) {
         if let Some(monitor) = window.current_monitor() {
             if let Some(refresh_rate) = monitor.refresh_rate_millihertz() {
-                self.target_frame_time = Duration::from_millis(1000000 / refresh_rate as u64);
+                self.target_frame_time = Duration::from_millis(1_000_000 / refresh_rate as u64);
                 println!("target frame_time: {:?}", self.target_frame_time);
             } else {
                 println!("Refresh rate not available {:?}", self.target_frame_time);
             }
         } else {
-            let mut refresh_rate = 60000;
+            let mut refresh_rate = 60_000;
             window.available_monitors().for_each(|x| {
                 if let Some(x) = x.refresh_rate_millihertz() {
                     refresh_rate = refresh_rate.max(x);
@@ -112,7 +115,7 @@ impl App {
                     println!("Refresh rate not available {:?}", self.target_frame_time)
                 }
             });
-            self.target_frame_time = Duration::from_millis(1000000 / refresh_rate as u64);
+            self.target_frame_time = Duration::from_millis(1_000_000 / refresh_rate as u64);
             println!("target frame_time: {:?}", self.target_frame_time);
         }
     }
@@ -126,6 +129,9 @@ impl App {
             })
             .with_visible(false)
             .with_theme(Some(Theme::Dark));
+
+        #[cfg(target_os = "linux")]
+        let window_attributes = window_attributes.with_name(APP_NAME, APP_NAME);
 
         #[cfg(target_os = "windows")]
         let window_attributes =

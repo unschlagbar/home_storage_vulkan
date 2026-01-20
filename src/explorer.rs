@@ -1,8 +1,10 @@
 use std::env;
 use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
+use iron_oxide::ui::text_layout::{TextLayout, TextOverflow};
 use iron_oxide::ui::{
-    Absolute, Align, ElementBuilder, FlexDirection, Image, ScrollPanel, Shadow, TextExitContext, Ticking
+    Absolute, Align, ElementBuilder, FlexDirection, Image, ScrollPanel, Shadow, TextExitContext,
+    TextInput, Ticking,
 };
 use iron_oxide::{
     graphics::formats::RGBA,
@@ -201,7 +203,10 @@ impl Explorer {
                                 color: RGBA::grey(220),
                                 text: name,
                                 align: Align::Left,
-                                on_blur: Some(on_submit),
+                                layout: TextLayout {
+                                    overflow: TextOverflow::Ellipsis,
+                                    ..Default::default()
+                                },
                                 ..Default::default()
                             }
                             .wrap_childs_transparent("text", Vec::new()),
@@ -316,18 +321,37 @@ impl Explorer {
                     "rename" => {
                         let mut ui = self.ui.borrow_mut();
 
-                        let selected = ui.get_element_mut(self.selected_file).unwrap();
-                        let container: &mut Button = selected.downcast_mut().unwrap();
+                        let mut selected = ui.get_element(self.selected_file).unwrap();
+                        let container: &mut Button =
+                            selected.get_mut(&mut ui).downcast_mut().unwrap();
                         container.border = [1; 4];
                         container.callback = None;
 
-                        let child = selected.child(1).unwrap();
-                        Text::focus(&mut ui, child);
+                        let text_element = selected.child(1).unwrap();
+                        let text_element = ui.remove_element(text_element).unwrap();
+                        let text = text_element.downcast().unwrap();
+
+                        let mut text_input = TextInput::from(text);
+                        text_input.on_blur = Some(on_submit);
+
+                        let text_input = ui.add_child(text_input.wrap("input"), selected).unwrap();
+
+                        TextInput::focus(&mut ui, text_input);
                     }
                     name => println!("{name}"),
                 },
                 _ => unreachable!(),
             }
+        } else if event.event == UiEvent::Submit {
+            let mut ui = self.ui.borrow_mut();
+            let text_input = ui.get_element(event.element_id).unwrap();
+
+            let parent = text_input.as_ref().parent.unwrap();
+            let text_input = ui.remove_element(text_input).unwrap();
+            let text_input: TextInput = text_input.downcast().unwrap();
+            let text = Text::from(text_input);
+
+            ui.add_child(text.wrap_transparent("text"), parent).unwrap();
         }
     }
 
@@ -492,7 +516,7 @@ fn on_click_tooltip(mut context: ButtonContext) {
 }
 
 fn tick_error(context: ButtonContext) {
-    let this: &Ticking<Absolute> = context.element.downcast().unwrap();
+    let this: &Ticking<Absolute> = context.element.downcast_ref().unwrap();
     if this.last_tick.elapsed().as_secs_f32() > 1.0 {
         context.ui.remove_element(context.element);
     }

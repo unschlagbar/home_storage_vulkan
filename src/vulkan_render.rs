@@ -1,7 +1,7 @@
 #![allow(clippy::modulo_one)]
 use ash::vk::{
-    self, AccessFlags, Buffer, BufferUsageFlags, CompareOp, DescriptorSet, Extent3D, Format,
-    ImageUsageFlags, MemoryPropertyFlags, PipelineStageFlags,
+    self, AccessFlags, Buffer, BufferUsageFlags, Extent3D, Format, ImageUsageFlags,
+    MemoryPropertyFlags, PipelineStageFlags,
 };
 use iron_oxide::{
     graphics::{self, Material, SinlgeTimeCommands, Swapchain, TextureAtlas, VkBase},
@@ -47,8 +47,6 @@ pub struct VulkanRender {
     in_flight_fences: [vk::Fence; MFIF],
     pub current_frame: usize,
 
-    pub texture_sampler: vk::Sampler,
-
     pub font_atlas: graphics::Image,
 
     pub depth_image: graphics::Image,
@@ -62,7 +60,7 @@ impl VulkanRender {
         let start_time = Instant::now();
 
         let (base, surface_loader, surface) =
-            VkBase::create(0, vk::API_VERSION_1_3, c"Home Storage", window);
+            VkBase::create(0, vk::API_VERSION_1_2, c"Home Storage", window);
 
         let cmd_pool = Self::create_cmd_pool(&base);
         let single_time_cmd_pool = Self::create_single_time_cmd_pool(&base);
@@ -102,8 +100,6 @@ impl VulkanRender {
 
         font_atlas.create_view(&base, vk::ImageAspectFlags::COLOR);
 
-        let texture_sampler = Self::create_texture_sampler(&base.device);
-
         let command_buffers = Self::create_command_buffers(&base.device, cmd_pool);
         let (image_available_semaphores, render_finsih_semaphores, in_flight_fences) =
             Self::create_sync_object(&base.device, swapchain.image_views.len());
@@ -113,7 +109,7 @@ impl VulkanRender {
         texture_atlas.load_directory(path, &base, cmd_pool);
 
         let mut ressources = Ressources::new(&base, texture_atlas);
-        
+
         let shadow_shaders = (
             include_bytes!("../spv/shadow.vert.spv").as_ref(),
             include_bytes!("../spv/shadow.frag.spv").as_ref(),
@@ -156,21 +152,11 @@ impl VulkanRender {
             let ubo_layout = Ui::create_ubo_desc_layout(&base.device);
             let img_layout = Ui::create_img_desc_layout(&base.device);
 
-            ressources.create_desc_sets(
-                &base.device,
-                &[ubo_layout, img_layout, img_layout],
-                uniform_buffers[0],
-                font_atlas.view,
-                ressources.texture_atlas.atlas.as_ref().unwrap().view,
-                texture_sampler,
-            );
-
             ressources.add_mat(Material::new::<UiInstance>(
                 &base,
                 window_size,
                 render_pass,
                 &[ubo_layout],
-                DescriptorSet::null(),
                 false,
                 base_shaders,
             ));
@@ -180,9 +166,7 @@ impl VulkanRender {
                 window_size,
                 render_pass,
                 &[ubo_layout, img_layout],
-                ressources.img_set,
                 false,
-
                 font_shaders,
             ));
 
@@ -191,9 +175,7 @@ impl VulkanRender {
                 window_size,
                 render_pass,
                 &[ubo_layout],
-                DescriptorSet::null(),
                 true,
-
                 shadow_shaders,
             ));
 
@@ -202,12 +184,18 @@ impl VulkanRender {
                 window_size,
                 render_pass,
                 &[ubo_layout, img_layout],
-                ressources.atl_set,
                 false,
-
                 atlas_shaders,
             ));
 
+            ressources.create_desc_sets(
+                &base.device,
+                &[ubo_layout, img_layout, img_layout],
+                &[1, 3],
+                uniform_buffers[0],
+                font_atlas.view,
+                ressources.texture_atlas.atlas.as_ref().unwrap().view,
+            );
             unsafe {
                 base.device.destroy_descriptor_set_layout(ubo_layout, None);
                 base.device.destroy_descriptor_set_layout(img_layout, None);
@@ -237,7 +225,6 @@ impl VulkanRender {
 
             font_atlas,
 
-            texture_sampler,
             depth_image,
 
             ui: ui_state,
@@ -716,29 +703,6 @@ impl VulkanRender {
         (texture_image, staging_buffer)
     }
 
-    fn create_texture_sampler(device: &ash::Device) -> vk::Sampler {
-        let create_info = vk::SamplerCreateInfo {
-            mag_filter: vk::Filter::NEAREST,
-            min_filter: vk::Filter::NEAREST,
-            mipmap_mode: vk::SamplerMipmapMode::NEAREST,
-            address_mode_u: vk::SamplerAddressMode::CLAMP_TO_BORDER,
-            address_mode_v: vk::SamplerAddressMode::CLAMP_TO_BORDER,
-            address_mode_w: vk::SamplerAddressMode::CLAMP_TO_BORDER,
-            mip_lod_bias: 0.0,
-            anisotropy_enable: vk::FALSE,
-            max_anisotropy: 0.0,
-            compare_enable: vk::FALSE,
-            compare_op: CompareOp::ALWAYS,
-            min_lod: 0.0,
-            max_lod: 0.0,
-            border_color: vk::BorderColor::FLOAT_TRANSPARENT_BLACK,
-            unnormalized_coordinates: vk::TRUE,
-            ..Default::default()
-        };
-
-        unsafe { device.create_sampler(&create_info, None).unwrap() }
-    }
-
     fn create_depth_resources(
         base: &VkBase,
         cmd_pool: vk::CommandPool,
@@ -791,7 +755,6 @@ impl VulkanRender {
             device.destroy_command_pool(self.single_time_cmd_pool, None);
             device.destroy_render_pass(self.render_pass, None);
             self.swapchain.destroy(device);
-            device.destroy_sampler(self.texture_sampler, None);
             self.depth_image.destroy(device);
             self.font_atlas.destroy(device);
             device.destroy_device(None);
