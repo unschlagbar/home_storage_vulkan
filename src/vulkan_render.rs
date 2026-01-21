@@ -4,10 +4,10 @@ use ash::vk::{
     MemoryPropertyFlags, PipelineStageFlags,
 };
 use iron_oxide::{
-    graphics::{self, Material, SinlgeTimeCommands, Swapchain, TextureAtlas, VkBase},
+    graphics::{self, Material, Ressources, SinlgeTimeCommands, Swapchain, TextureAtlas, VkBase},
     primitives::Matrix4,
     ui::{
-        Ressources, Ui,
+        Ui,
         materials::{AtlasInstance, FontInstance, ShadowInstance, UiInstance},
     },
 };
@@ -35,7 +35,6 @@ pub struct VulkanRender {
     pub render_pass: vk::RenderPass,
 
     pub cmd_pool: vk::CommandPool,
-    pub single_time_cmd_pool: vk::CommandPool,
 
     pub uniform_buffers: [Buffer; MFIF],
     uniform_buffers_mapped: [*mut Matrix4; MFIF],
@@ -48,7 +47,6 @@ pub struct VulkanRender {
     pub current_frame: usize,
 
     pub font_atlas: graphics::Image,
-
     pub depth_image: graphics::Image,
 
     pub ui: Rc<RefCell<Ui>>,
@@ -61,9 +59,6 @@ impl VulkanRender {
 
         let (base, surface_loader, surface) =
             VkBase::create(0, vk::API_VERSION_1_2, c"Home Storage", window);
-
-        let cmd_pool = Self::create_cmd_pool(&base);
-        let single_time_cmd_pool = Self::create_single_time_cmd_pool(&base);
 
         let window_size = window.inner_size();
 
@@ -80,6 +75,7 @@ impl VulkanRender {
         let render_pass =
             Self::create_render_pass(&base, swapchain.format, true, true, false, true);
 
+        let cmd_pool = Self::create_cmd_pool(&base);
         let depth_image = Self::create_depth_resources(
             &base,
             cmd_pool,
@@ -89,9 +85,9 @@ impl VulkanRender {
                 depth: 1,
             },
         );
-        let cmd_buf = SinlgeTimeCommands::begin(&base, single_time_cmd_pool);
+        let cmd_buf = SinlgeTimeCommands::begin(&base, cmd_pool);
         let (mut font_atlas, mut staging_buf) = Self::create_font_atlas(&base, cmd_buf);
-        SinlgeTimeCommands::end(&base, single_time_cmd_pool, cmd_buf);
+        SinlgeTimeCommands::end(&base, cmd_pool, cmd_buf);
 
         staging_buf.destroy(&base.device);
 
@@ -211,7 +207,6 @@ impl VulkanRender {
             render_pass,
 
             cmd_pool,
-            single_time_cmd_pool,
 
             uniform_buffers,
             uniform_buffers_mapped,
@@ -252,7 +247,7 @@ impl VulkanRender {
 
         self.depth_image = Self::create_depth_resources(
             &self.base,
-            self.single_time_cmd_pool,
+            self.cmd_pool,
             Extent3D {
                 width: extend.width,
                 height: extend.height,
@@ -380,16 +375,6 @@ impl VulkanRender {
         let pool_info = vk::CommandPoolCreateInfo {
             flags: vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER
                 | vk::CommandPoolCreateFlags::TRANSIENT,
-            queue_family_index: base.queue_family_index,
-            ..Default::default()
-        };
-
-        unsafe { base.device.create_command_pool(&pool_info, None).unwrap() }
-    }
-
-    fn create_single_time_cmd_pool(base: &VkBase) -> vk::CommandPool {
-        let pool_info = vk::CommandPoolCreateInfo {
-            flags: vk::CommandPoolCreateFlags::TRANSIENT,
             queue_family_index: base.queue_family_index,
             ..Default::default()
         };
@@ -612,17 +597,16 @@ impl VulkanRender {
         let mut in_flight_fences = [vk::Fence::null(); MFIF];
 
         unsafe {
-            for i in 0..MFIF {
-                image_available_semaphores[i] = device
-                    .create_semaphore(&semaphore_info, None)
-                    .unwrap_unchecked();
-                in_flight_fences[i] = device.create_fence(&fence_info, None).unwrap_unchecked();
+            for semaphore in &mut image_available_semaphores {
+                *semaphore = device.create_semaphore(&semaphore_info, None).unwrap();
+            }
+
+            for fence in &mut in_flight_fences {
+                *fence = device.create_fence(&fence_info, None).unwrap();
             }
 
             for semaphore in &mut render_finsih_semaphores {
-                *semaphore = device
-                    .create_semaphore(&semaphore_info, None)
-                    .unwrap_unchecked();
+                *semaphore = device.create_semaphore(&semaphore_info, None).unwrap();
             }
         }
 
@@ -736,13 +720,9 @@ impl VulkanRender {
         unsafe {
             let device = &self.base.device;
             device.device_wait_idle().unwrap();
-            #[cfg(debug_assertions)]
-            self.base
-                .debug_utils
-                .destroy_debug_utils_messenger(self.base.utils_messenger, None);
 
-            for i in 0..self.swapchain.image_views.len() {
-                device.destroy_semaphore(self.render_finsih_semaphores[i], None);
+            for &semaphore in &self.render_finsih_semaphores {
+                device.destroy_semaphore(semaphore, None);
             }
 
             for i in 0..MFIF {
@@ -752,13 +732,12 @@ impl VulkanRender {
 
             self.ressources.destroy(&self.base);
             device.destroy_command_pool(self.cmd_pool, None);
-            device.destroy_command_pool(self.single_time_cmd_pool, None);
             device.destroy_render_pass(self.render_pass, None);
             self.swapchain.destroy(device);
             self.depth_image.destroy(device);
             self.font_atlas.destroy(device);
-            device.destroy_device(None);
-            self.base.instance.destroy_instance(None);
+
+            self.base.destroy();
         };
     }
 }

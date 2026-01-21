@@ -1,6 +1,7 @@
 #![allow(clippy::collapsible_match)]
 #![allow(clippy::single_match)]
 use crate::{explorer::Explorer, network::Network, vulkan_render::VulkanRender};
+use ash::vk::Extent3D;
 use iron_oxide::ui::Ui;
 
 use std::{
@@ -226,6 +227,25 @@ impl ApplicationHandler for App {
                         }
                         KeyCode::KeyU => {
                             window.set_minimized(true);
+                        }
+                        KeyCode::F9 => {
+                            let renderer = self.renderer.as_ref().unwrap().borrow_mut();
+                            let image = renderer.ressources.texture_atlas.atlas.as_ref().unwrap();
+                            image.save_to_png(
+                                &renderer.base,
+                                renderer.cmd_pool,
+                                Extent3D {
+                                    width: 1024,
+                                    height: 1024,
+                                    depth: 1,
+                                },
+                                "stupid atlas.png",
+                            );
+                        }
+                        KeyCode::F3 => {
+                            let mut ui = self.ui.borrow_mut();
+                            let elem = ui.get_element(self.explorer.path_bar).unwrap();
+                            println!("ff: {:?}", elem);
                         }
                         _ => (),
                     }

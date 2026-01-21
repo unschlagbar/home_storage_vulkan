@@ -1,4 +1,5 @@
 use std::env;
+use std::io::ErrorKind;
 use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
 use iron_oxide::ui::text_layout::{TextLayout, TextOverflow};
@@ -27,12 +28,20 @@ pub struct Explorer {
     pub hovered_element: u32,
     pub selected_file: u32,
 
+    pub path_bar: u32,
+
     pub path: PathBuf,
     pub ui: Rc<RefCell<Ui>>,
 }
 
 impl Explorer {
     pub fn new(ui: Rc<RefCell<Ui>>) -> Self {
+        let path_bar;
+        let path: PathBuf = env::var(Self::HOME)
+            .ok()
+            .unwrap_or(Self::ROOT_PATH.to_string())
+            .into();
+
         let content_window = {
             let mut ui = ui.borrow_mut();
 
@@ -54,6 +63,7 @@ impl Explorer {
                         color: RGBA::grey(25),
                         width: Fill,
                         height: Px(40.0),
+                        flex_direction: FlexDirection::Horizontal,
                         ..Default::default()
                     }
                     .wrap("nav_bar"),
@@ -77,6 +87,43 @@ impl Explorer {
                     }
                     .wrap("back"),
                     nav_bar,
+                )
+                .unwrap()
+                .id();
+
+            let path_bar_parent = ui
+                .add_child(
+                    Container {
+                        color: RGBA::grey(25),
+                        width: Fill,
+                        height: Fill,
+                        margin: UiRect::new(5.0),
+                        padding: UiRect::horizontal(Px(15.0)),
+                        corner: [RelativeHeight(0.5); 4],
+                        border: [1; 4],
+                        border_color: RGBA::grey(100),
+                        ..Default::default()
+                    }
+                    .wrap_childs("pathbar", Vec::with_capacity(1)),
+                    nav_bar,
+                )
+                .unwrap()
+                .id();
+
+            path_bar = ui
+                .add_child(
+                    TextInput {
+                        color: RGBA::grey(220),
+                        text: path.to_str().unwrap().to_string(),
+                        align: Align::Left,
+                        layout: TextLayout {
+                            overflow: TextOverflow::Ellipsis,
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
+                    .wrap("lio"),
+                    path_bar_parent,
                 )
                 .unwrap()
                 .id();
@@ -119,16 +166,12 @@ impl Explorer {
             .id()
         };
 
-        let path = env::var(Self::HOME)
-            .ok()
-            .unwrap_or(Self::ROOT_PATH.to_string())
-            .into();
-
         Self {
             content_window,
             tool_tip: u32::MAX,
             hovered_element: 0,
             selected_file: 0,
+            path_bar,
             path,
             ui,
         }
@@ -136,6 +179,13 @@ impl Explorer {
 
     pub fn display_path(&mut self) {
         let mut ui = self.ui.borrow_mut();
+
+        let path_string = self.path.to_str().unwrap().to_string();
+        let mut path_bar = ui.get_element(self.path_bar).unwrap();
+        path_bar
+            .downcast_mut::<TextInput>(&mut ui)
+            .unwrap()
+            .set_new(path_string);
 
         match fs::read_dir(&self.path) {
             Ok(entries) => {
@@ -242,6 +292,10 @@ impl Explorer {
                 }
             }
             Err(error) => {
+                if error.kind() == ErrorKind::NotADirectory {
+                    path_bar.downcast_mut::<TextInput>(&mut ui).unwrap().color = RGBA::RED;
+                }
+
                 if let Some(path) = self.path.parent() {
                     self.path = path.into();
                 }
@@ -321,9 +375,9 @@ impl Explorer {
                     "rename" => {
                         let mut ui = self.ui.borrow_mut();
 
+                        println!("se{}", self.selected_file);
                         let mut selected = ui.get_element(self.selected_file).unwrap();
-                        let container: &mut Button =
-                            selected.get_mut(&mut ui).downcast_mut().unwrap();
+                        let container: &mut Button = selected.downcast_mut(&mut ui).unwrap();
                         container.border = [1; 4];
                         container.callback = None;
 
@@ -343,15 +397,26 @@ impl Explorer {
                 _ => unreachable!(),
             }
         } else if event.event == UiEvent::Submit {
-            let mut ui = self.ui.borrow_mut();
-            let text_input = ui.get_element(event.element_id).unwrap();
+            if event.element_id == self.path_bar {
+                {
+                    let mut ui = self.ui.borrow_mut();
+                    let path_bar = ui.get_element_mut(event.element_id).unwrap();
+                    let path_bar: &mut TextInput = path_bar.downcast_mut().unwrap();
+                    self.path =
+                        PathBuf::from(&path_bar.text.strip_suffix('/').unwrap_or(&path_bar.text));
+                }
+                self.display_path();
+            } else {
+                let mut ui = self.ui.borrow_mut();
+                let text_input = ui.get_element(event.element_id).unwrap();
 
-            let parent = text_input.as_ref().parent.unwrap();
-            let text_input = ui.remove_element(text_input).unwrap();
-            let text_input: TextInput = text_input.downcast().unwrap();
-            let text = Text::from(text_input);
+                let parent = text_input.as_ref().parent.unwrap();
+                let text_input = ui.remove_element(text_input).unwrap();
+                let text_input: TextInput = text_input.downcast().unwrap();
+                let text = Text::from(text_input);
 
-            ui.add_child(text.wrap_transparent("text"), parent).unwrap();
+                ui.add_child(text.wrap_transparent("text"), parent).unwrap();
+            }
         }
     }
 
@@ -360,6 +425,7 @@ impl Explorer {
             if hovered.name == "file" || hovered.name == "folder" {
                 self.hovered_element = hovered.id();
                 self.selected_file = hovered.id();
+                println!("{:?}", hovered.id());
 
                 let x = Px(ui.cursor_pos.x.into());
                 let y = Px(ui.cursor_pos.y.into());
