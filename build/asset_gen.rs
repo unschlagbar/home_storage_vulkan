@@ -2,7 +2,6 @@ use std::{env, fs, io::Write, path::Path};
 
 const ASSET_FOLDER: &str = "assets";
 
-#[macro_export]
 macro_rules! generate_assets {
     ($($path:expr => $enum_name:ident),* $(,)?) => {
         pub const BUILD_JOBS: &[(&str, &str)] = &[

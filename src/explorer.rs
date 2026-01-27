@@ -17,6 +17,7 @@ use iron_oxide::{
 use winit::window::CursorIcon;
 
 use crate::UiIcons;
+use crate::properties_view::PropertiesView;
 
 const OPEN: u16 = 1;
 const ENTRY_ACTION: u16 = 2;
@@ -27,8 +28,9 @@ pub struct Explorer {
     pub tool_tip: u32,
     pub hovered_element: u32,
     pub selected_file: u32,
-
     pub path_bar: u32,
+    
+    pub properties_view: PropertiesView,
 
     pub path: PathBuf,
     pub ui: Rc<RefCell<Ui>>,
@@ -60,7 +62,7 @@ impl Explorer {
             let nav_bar = ui
                 .add_child(
                     Container {
-                        color: RGBA::grey(25),
+                        color: RGBA::grey(20),
                         width: Fill,
                         height: Px(40.0),
                         flex_direction: FlexDirection::Horizontal,
@@ -77,10 +79,10 @@ impl Explorer {
                 .add_child(
                     Button {
                         color: RGBA::ZERO,
-                        width: Px(34.0),
-                        height: Px(34.0),
-                        margin: UiRect::new(3.0),
-                        padding: UiRect::new(2.0),
+                        width: Px(32.0),
+                        height: Px(32.0),
+                        margin: UiRect::new(4.0),
+                        padding: UiRect::new(6.0),
                         callback: Some(on_click),
                         message: GO_BACK,
                         ..Default::default()
@@ -94,13 +96,13 @@ impl Explorer {
             let path_bar_parent = ui
                 .add_child(
                     Container {
-                        color: RGBA::grey(25),
+                        color: RGBA::grey(35),
                         width: Fill,
                         height: Fill,
                         margin: UiRect::new(5.0),
                         padding: UiRect::horizontal(Px(15.0)),
                         corner: [RelativeHeight(0.5); 4],
-                        border: [1; 4],
+                        border: [0; 4],
                         border_color: RGBA::grey(100),
                         ..Default::default()
                     }
@@ -109,6 +111,21 @@ impl Explorer {
                 )
                 .unwrap()
                 .id();
+
+            ui.add_child(
+                Button {
+                    color: RGBA::ZERO,
+                    width: Px(34.0),
+                    height: Px(34.0),
+                    margin: UiRect::new(3.0),
+                    padding: UiRect::new(2.0),
+                    callback: Some(on_click),
+                    message: GO_BACK,
+                    ..Default::default()
+                }
+                .wrap("back"),
+                nav_bar,
+            );
 
             path_bar = ui
                 .add_child(
@@ -131,6 +148,7 @@ impl Explorer {
             ui.add_child(
                 Image {
                     atlas_index: UiIcons::Back as u32,
+                    color: RGBA::grey(200),
                     ..Default::default()
                 }
                 .wrap_transparent("back_image"),
@@ -140,11 +158,11 @@ impl Explorer {
             let content = ui
                 .add_child(
                     Container {
-                        color: RGBA::grey(30),
+                        color: RGBA::grey(25),
                         width: Fill,
                         height: Fill,
                         border: [0, 1, 0, 0],
-                        border_color: RGBA::grey(90),
+                        border_color: RGBA::grey(70),
                         padding: UiRect::new(2.0),
                         ..Default::default()
                     }
@@ -174,6 +192,7 @@ impl Explorer {
             path_bar,
             path,
             ui,
+            properties_view: PropertiesView::default(),
         }
     }
 
@@ -182,10 +201,10 @@ impl Explorer {
 
         let path_string = self.path.to_str().unwrap().to_string();
         let mut path_bar = ui.get_element(self.path_bar).unwrap();
-        path_bar
-            .downcast_mut::<TextInput>(&mut ui)
-            .unwrap()
-            .set_new(path_string);
+        let path_bar_widget: &mut TextInput = path_bar.downcast_mut(&mut ui).unwrap();
+
+        path_bar_widget.set_new(path_string);
+        path_bar_widget.color = RGBA::grey(200);
 
         match fs::read_dir(&self.path) {
             Ok(entries) => {
@@ -210,6 +229,8 @@ impl Explorer {
                     } else {
                         let icon = match extention {
                             "rs" => UiIcons::RustFile,
+                            "blend" | "blend1" => UiIcons::Blender,
+                            "code-workspace" => UiIcons::VSCode,
                             _ => UiIcons::TxtFile,
                         } as u32;
                         ("file", icon)
@@ -292,24 +313,22 @@ impl Explorer {
                 }
             }
             Err(error) => {
-                if error.kind() == ErrorKind::NotADirectory {
+                if error.kind() == ErrorKind::NotFound {
                     path_bar.downcast_mut::<TextInput>(&mut ui).unwrap().color = RGBA::RED;
-                }
-
-                if let Some(path) = self.path.parent() {
+                } else if let Some(path) = self.path.parent() {
                     self.path = path.into();
                 }
 
                 let e_message = Ticking {
                     inner: Absolute {
-                        color: RGBA::grey(50),
-                        x: Px(ui.cursor_pos.x.into()),
-                        y: Px(ui.cursor_pos.y.into()),
+                        color: RGBA::grey(45),
+                        x: Px(ui.cursor_pos.x as f32),
+                        y: Px(ui.cursor_pos.y as f32),
                         border: [1; 4],
                         width: Auto,
                         height: Auto,
-                        padding: UiRect::new(3.0),
-                        corner: [Px(4.0); 4],
+                        padding: UiRect::new(5.0),
+                        corner: [Px(5.0); 4],
                         ..Default::default()
                     },
                     tick: Some(tick_error),
@@ -333,7 +352,7 @@ impl Explorer {
     }
 
     pub fn proceed_event(&mut self, event: QueuedEvent) {
-        if event.event == UiEvent::Release {
+        if event.event.is_release() {
             match event.message {
                 OPEN => {
                     if event.element_name == "folder" {
@@ -375,7 +394,6 @@ impl Explorer {
                     "rename" => {
                         let mut ui = self.ui.borrow_mut();
 
-                        println!("se{}", self.selected_file);
                         let mut selected = ui.get_element(self.selected_file).unwrap();
                         let container: &mut Button = selected.downcast_mut(&mut ui).unwrap();
                         container.border = [1; 4];
@@ -388,9 +406,18 @@ impl Explorer {
                         let mut text_input = TextInput::from(text);
                         text_input.on_blur = Some(on_submit);
 
-                        let text_input = ui.add_child(text_input.wrap("input"), selected).unwrap();
-
+                        let mut text_input =
+                            ui.add_child(text_input.wrap("input"), selected).unwrap();
                         TextInput::focus(&mut ui, text_input);
+                        text_input
+                            .downcast_mut::<TextInput>(&mut ui)
+                            .unwrap()
+                            .set_cursor();
+                    }
+                    "properties" => {
+                        let mut ui = self.ui.borrow_mut();
+                        self.properties_view.build(&mut ui);
+                        ui.layout_changed();
                     }
                     name => println!("{name}"),
                 },
@@ -402,8 +429,13 @@ impl Explorer {
                     let mut ui = self.ui.borrow_mut();
                     let path_bar = ui.get_element_mut(event.element_id).unwrap();
                     let path_bar: &mut TextInput = path_bar.downcast_mut().unwrap();
-                    self.path =
-                        PathBuf::from(&path_bar.text.strip_suffix('/').unwrap_or(&path_bar.text));
+                    if path_bar.text == self.path.to_str().unwrap() {
+                        return;
+                    } else {
+                        self.path = PathBuf::from(
+                            &path_bar.text.strip_suffix('/').unwrap_or(&path_bar.text),
+                        );
+                    }
                 }
                 self.display_path();
             } else {
@@ -425,7 +457,6 @@ impl Explorer {
             if hovered.name == "file" || hovered.name == "folder" {
                 self.hovered_element = hovered.id();
                 self.selected_file = hovered.id();
-                println!("{:?}", hovered.id());
 
                 let x = Px(ui.cursor_pos.x.into());
                 let y = Px(ui.cursor_pos.y.into());
@@ -516,6 +547,27 @@ impl Explorer {
                                             .wrap_transparent(""),
                                         ],
                                     ),
+                                    Button {
+                                        width: Relative(1.0),
+                                        height: Px(30.0),
+                                        color: RGBA::ZERO,
+                                        border_color: RGBA::BLUE,
+                                        corner: [Px(5.0); 4],
+                                        callback: Some(on_click_tooltip),
+                                        message: ENTRY_ACTION,
+                                        ..Default::default()
+                                    }
+                                    .wrap_childs(
+                                        "properties",
+                                        vec![
+                                            Text {
+                                                text: "Eigenschaften".to_string(),
+                                                color: RGBA::grey(220),
+                                                ..Default::default()
+                                            }
+                                            .wrap_transparent(""),
+                                        ],
+                                    ),
                                 ],
                             ),
                         )
@@ -560,7 +612,7 @@ fn on_click(mut context: ButtonContext) {
     context.ui.color_changed();
 }
 
-fn on_click_tooltip(mut context: ButtonContext) {
+pub fn on_click_tooltip(mut context: ButtonContext) {
     let button: &mut Button = context.element.get_mut(context.ui).downcast_mut().unwrap();
 
     match button.state {
@@ -583,8 +635,9 @@ fn on_click_tooltip(mut context: ButtonContext) {
 
 fn tick_error(context: ButtonContext) {
     let this: &Ticking<Absolute> = context.element.downcast_ref().unwrap();
-    if this.last_tick.elapsed().as_secs_f32() > 1.0 {
+    if this.time.elapsed().as_millis() > 750 {
         context.ui.remove_element(context.element);
+        context.ui.color_changed();
     }
 }
 

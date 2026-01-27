@@ -1,7 +1,15 @@
 #![cfg(not(target_os = "android"))]
-//#![windows_subsystem = "windows"]
-
 include!(concat!(env!("OUT_DIR"), "/gen_assets.rs"));
+include!(concat!(env!("OUT_DIR"), "/include_dirs.rs"));
+
+mod app;
+mod asset_manager;
+mod explorer;
+mod network;
+mod properties_view;
+mod render_assets;
+mod utils;
+mod vulkan_render;
 
 use std::{
     net::{Ipv4Addr, SocketAddrV4},
@@ -10,18 +18,13 @@ use std::{
 
 use winit::event_loop::EventLoop;
 
-pub mod app;
-mod explorer;
-mod network;
-mod vulkan_render;
+use crate::{app::App, network::Network};
 
 #[cfg_attr(target_os = "linux", path = "file_handling/linux.rs")]
 #[cfg_attr(target_os = "windows", path = "file_handling/windows.rs")]
 pub mod file_handling;
 
-use crate::{app::App, network::Network};
-
-fn main() {
+pub fn main() {
     let event_loop = EventLoop::new().unwrap();
     let network = Arc::new(Network::new(
         SocketAddrV4::new(Ipv4Addr::LOCALHOST, 2350).into(),

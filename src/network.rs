@@ -2,6 +2,7 @@ use std::{
     io::Write,
     net::{SocketAddr, TcpStream},
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 pub struct Network {
@@ -10,7 +11,9 @@ pub struct Network {
 
 impl Network {
     pub fn new(server_addr: SocketAddr) -> Self {
-        let stream = if let Ok(stream) = TcpStream::connect(server_addr) {
+        let stream = if let Ok(stream) =
+            TcpStream::connect_timeout(&server_addr, Duration::from_millis(10))
+        {
             println!("connected");
             Some(stream)
         } else {
@@ -25,6 +28,7 @@ impl Network {
 
 pub struct Connection {
     pub stream: Option<TcpStream>,
+    #[allow(unused)]
     pub connected: bool,
 }
 

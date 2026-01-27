@@ -1,7 +1,8 @@
 #![allow(clippy::collapsible_match)]
 #![allow(clippy::single_match)]
-use crate::{explorer::Explorer, network::Network, vulkan_render::VulkanRender};
-use ash::vk::Extent3D;
+use crate::network::Network;
+use crate::render_assets::RenderAssets;
+use crate::{explorer::Explorer, vulkan_render::VulkanRender};
 use iron_oxide::ui::Ui;
 
 use std::{
@@ -25,9 +26,6 @@ use winit::platform::wayland::WindowAttributesExtWayland;
 #[cfg(target_os = "windows")]
 use winit::platform::windows::{CornerPreference, WindowAttributesExtWindows};
 
-#[cfg(target_os = "android")]
-use ndk::asset::AssetManager;
-
 const APP_NAME: &str = "Home Server";
 const WIDTH: u32 = 1080;
 const HEIGHT: u32 = 720;
@@ -42,12 +40,11 @@ pub const DEBUG_PERF: bool = false;
 pub struct App {
     pub window: Option<Window>,
     pub renderer: Option<Rc<RefCell<VulkanRender>>>,
+    pub render_assets: RenderAssets,
     pub ui: Rc<RefCell<Ui>>,
 
+    #[allow(unused)]
     pub net: Arc<Network>,
-
-    #[cfg(target_os = "android")]
-    pub assets: AssetManager,
 
     pub explorer: Explorer,
 
@@ -56,7 +53,6 @@ pub struct App {
 }
 
 impl App {
-    #[cfg(not(target_os = "android"))]
     pub fn create(net: Arc<Network>) -> Self {
         let renderer = None;
 
@@ -68,6 +64,7 @@ impl App {
         Self {
             window: None,
             renderer,
+            render_assets: RenderAssets::default(),
             ui,
             net,
             explorer,
@@ -76,34 +73,11 @@ impl App {
         }
     }
 
-    #[cfg(target_os = "android")]
-    pub fn create(assets: AssetManager) -> Self {
-        let renderer = None;
-
-        let ui = Rc::new(RefCell::new(Ui::create(true)));
-        let mut explorer = Explorer::new(ui.clone());
-
-        explorer.display_path();
-
-        Self {
-            window: None,
-            renderer,
-            ui,
-
-            assets,
-
-            cursor_pos: Vec2::default(),
-            time: Instant::now(),
-            explorer,
-            target_frame_time: 1.0 / DEFAULT_FPS,
-        }
-    }
-
     fn get_framerate(&mut self, window: &Window) {
         if let Some(monitor) = window.current_monitor() {
             if let Some(refresh_rate) = monitor.refresh_rate_millihertz() {
                 self.target_frame_time = Duration::from_millis(1_000_000 / refresh_rate as u64);
-                println!("target frame_time: {:?}", self.target_frame_time);
+                println!("target frametime: {:?}", self.target_frame_time);
             } else {
                 println!("Refresh rate not available {:?}", self.target_frame_time);
             }
@@ -117,7 +91,7 @@ impl App {
                 }
             });
             self.target_frame_time = Duration::from_millis(1_000_000 / refresh_rate as u64);
-            println!("target frame_time: {:?}", self.target_frame_time);
+            println!("target frametime: {:?}", self.target_frame_time);
         }
     }
 
@@ -128,15 +102,15 @@ impl App {
                 width: WIDTH,
                 height: HEIGHT,
             })
-            .with_visible(false)
             .with_theme(Some(Theme::Dark));
 
         #[cfg(target_os = "linux")]
         let window_attributes = window_attributes.with_name(APP_NAME, APP_NAME);
 
         #[cfg(target_os = "windows")]
-        let window_attributes =
-            window_attributes.with_corner_preference(CornerPreference::RoundSmall);
+        let window_attributes = window_attributes
+            .with_corner_preference(CornerPreference::RoundSmall)
+            .with_visible(false);
 
         event_loop.create_window(window_attributes).unwrap()
     }
@@ -154,17 +128,14 @@ impl ApplicationHandler for App {
 
         let input_consumed;
 
-        let (ui_event, ui_event2) = {
+        let ui_events = {
             let mut ui = self.ui.borrow_mut();
             input_consumed = ui.window_event(&event, window).is_new();
-            (ui.get_event(), ui.get_event())
+            [ui.get_event(), ui.get_event()]
         };
 
-        if let Some(event) = ui_event {
-            self.explorer.proceed_event(event);
-            if let Some(event) = ui_event2 {
-                self.explorer.proceed_event(event)
-            }
+        for event in ui_events.into_iter().flatten() {
+            self.explorer.proceed_event(event)
         }
 
         match event {
@@ -205,13 +176,6 @@ impl ApplicationHandler for App {
                     && let PhysicalKey::Code(key_code) = event.physical_key
                 {
                     match key_code {
-                        KeyCode::F1 => {
-                            if event.state.is_pressed() {
-                                let mut ui = self.ui.borrow_mut();
-                                ui.visible = !ui.visible;
-                                window.request_redraw();
-                            }
-                        }
                         KeyCode::F11 => {
                             if window.fullscreen().is_none() {
                                 window.set_fullscreen(Some(Fullscreen::Borderless(None)));
@@ -219,33 +183,10 @@ impl ApplicationHandler for App {
                                 window.set_fullscreen(None);
                             }
                         }
-                        KeyCode::KeyT => {
-                            window.set_maximized(true);
-                        }
-                        KeyCode::KeyZ => {
-                            window.set_maximized(false);
-                        }
-                        KeyCode::KeyU => {
-                            window.set_minimized(true);
-                        }
-                        KeyCode::F9 => {
-                            let renderer = self.renderer.as_ref().unwrap().borrow_mut();
-                            let image = renderer.ressources.texture_atlas.atlas.as_ref().unwrap();
-                            image.save_to_png(
-                                &renderer.base,
-                                renderer.cmd_pool,
-                                Extent3D {
-                                    width: 1024,
-                                    height: 1024,
-                                    depth: 1,
-                                },
-                                "stupid atlas.png",
-                            );
-                        }
                         KeyCode::F3 => {
                             let mut ui = self.ui.borrow_mut();
-                            let elem = ui.get_element(self.explorer.path_bar).unwrap();
-                            println!("ff: {:?}", elem);
+                            let elem = ui.get_element(self.explorer.properties_view.id).unwrap();
+                            println!("f3 Debug: {:?}", elem);
                         }
                         _ => (),
                     }
@@ -266,9 +207,9 @@ impl ApplicationHandler for App {
                     return;
                 }
                 renderer.recreate_swapchain(new_size);
-                // The window_event fn will take care of RedrawRequest
             }
             WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::Destroyed => event_loop.exit(),
             _ => (),
         }
     }
@@ -304,13 +245,14 @@ impl ApplicationHandler for App {
         println!("suspended");
 
         if let Some(renderer) = &self.renderer {
-            renderer.borrow_mut().destroy();
+            let mut renderer = renderer.borrow_mut();
+            renderer.destroy_ressources(&mut self.render_assets);
         }
+
+        self.renderer = None;
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        println!("resumed");
-
         let window = if let Some(window) = self.window.take() {
             window
         } else {
@@ -320,21 +262,32 @@ impl ApplicationHandler for App {
         };
 
         if let Some(renderer) = &self.renderer {
-            renderer.replace(VulkanRender::create(&window, self.ui.clone()));
+            let mut renderer = renderer.borrow_mut();
+            self.render_assets.init(&mut renderer);
+        } else if DEBUG_PERF {
+            let start_time = Instant::now();
+
+            let mut renderer = VulkanRender::create(&window, self.ui.clone());
+            self.render_assets.init(&mut renderer);
+            self.renderer = Some(Rc::new(RefCell::new(renderer)));
+
+            println!("Vulkan time: {:?}", start_time.elapsed());
         } else {
-            self.renderer = Some(Rc::new(RefCell::new(VulkanRender::create(
-                &window,
-                self.ui.clone(),
-            ))));
-        };
+            let mut renderer = VulkanRender::create(&window, self.ui.clone());
+            self.render_assets.init(&mut renderer);
+            self.renderer = Some(Rc::new(RefCell::new(renderer)));
+        }
 
-        self.ui.borrow_mut().resize(window.inner_size().into());
+        let mut ui = self.ui.borrow_mut();
+        ui.scale_factor = window.scale_factor() as f32;
+        ui.resize(window.inner_size().into());
 
+        #[cfg(target_os = "windows")]
         window.set_visible(true);
 
         self.window = Some(window);
         if DEBUG_PERF {
-            println!("window time: {:?}", self.time.elapsed());
+            println!("window + Vulkan time: {:?}", self.time.elapsed());
         }
         self.time = Instant::now();
     }
@@ -343,7 +296,8 @@ impl ApplicationHandler for App {
         println!("exiting");
 
         if let Some(renderer) = &self.renderer {
-            renderer.borrow_mut().destroy();
+            let mut renderer = renderer.borrow_mut();
+            renderer.destroy(&mut self.render_assets);
         }
     }
 }
