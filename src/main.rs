@@ -5,9 +5,11 @@ include!(concat!(env!("OUT_DIR"), "/include_dirs.rs"));
 mod app;
 mod asset_manager;
 mod explorer;
+mod file_size;
 mod network;
 mod properties_view;
 mod render_assets;
+mod tooltip_view;
 mod utils;
 mod vulkan_render;
 

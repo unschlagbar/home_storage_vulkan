@@ -147,9 +147,7 @@ impl ApplicationHandler for App {
                 let mut ui = self.ui.borrow_mut();
                 match (button, state) {
                     (MouseButton::Left, ElementState::Released) => {
-                        if self.explorer.mouse_click(&mut ui) {
-                            window.request_redraw();
-                        }
+                        self.explorer.mouse_click(&mut ui)
                     }
                     (MouseButton::Right, ElementState::Pressed) => {
                         if state == ElementState::Pressed && self.explorer.right_click(&mut ui) {
@@ -157,6 +155,9 @@ impl ApplicationHandler for App {
                         }
                     }
                     _ => (),
+                }
+                if ui.is_dirty() {
+                    window.request_redraw();
                 }
             }
             _ => (),

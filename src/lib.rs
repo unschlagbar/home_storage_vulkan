@@ -8,9 +8,11 @@ mod asset_manager;
 mod explorer;
 #[path = "file_handling/linux.rs"]
 mod file_handling;
+mod file_size;
 mod network;
 mod properties_view;
 mod render_assets;
+mod tooltip_view;
 mod utils;
 mod vulkan_render;
 

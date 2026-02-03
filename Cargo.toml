@@ -27,7 +27,7 @@ winit = { version = "0.30.12", default-features = false, features = ["rwh_06", "
 winit = { version = "0.30.12" }
 
 [features]
-default = ["linked", "standalone"]
+default = ["loaded", "standalone"]
 loaded = ["iron_oxide/loaded"]
 linked = ["iron_oxide/linked"]
 

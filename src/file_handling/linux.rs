@@ -7,7 +7,8 @@ impl Explorer {
         let path = {
             let mut ui = self.ui.borrow_mut();
             let element = ui.get_element(clicked_id).unwrap();
-            let text = element.get_text_at_pos(1).unwrap();
+            let element = element.child(1).unwrap();
+            let text = element.get_text().unwrap();
             self.path.join(text)
         };
 
