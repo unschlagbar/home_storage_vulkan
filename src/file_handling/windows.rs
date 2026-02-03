@@ -1,8 +1,8 @@
 use std::process::Command;
 
-use crate::explorer::Explorer;
+use crate::explorer::ExplorerData;
 
-impl Explorer {
+impl ExplorerData {
     pub fn open_file(&mut self, clicked_id: u32) {
         let path = {
             let mut ui = self.ui.borrow_mut();

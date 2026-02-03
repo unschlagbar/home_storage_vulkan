@@ -2,20 +2,24 @@ use iron_oxide::{
     graphics::formats::RGBA,
     primitives::Vec2,
     ui::{
-        Absolute, Button, ButtonContext, ButtonState, ElementBuilder, Shadow, Text, Ui, UiRect,
+        Absolute, Button, ButtonContext, ButtonState, ElementBuilder, QueuedEvent, Shadow, Text,
+        TextExitContext, TextInput, Ui, UiRect,
         UiUnit::{self, *},
     },
 };
 
-use crate::explorer::ENTRY_ACTION;
+use crate::explorer::{ENTRY_ACTION, Explorer};
 
+#[derive(Clone, Copy, Default)]
 pub struct ToolTipView {
     pub id: u32,
 }
 
 impl ToolTipView {
+    pub const MESSAGE: u16 = ENTRY_ACTION;
+
     pub fn is_active(&self) -> bool {
-        self.id != u32::MAX
+        self.id != 0
     }
 
     pub fn create(&mut self, ui: &mut Ui, pos: Vec2<f32>) {
@@ -46,7 +50,7 @@ impl ToolTipView {
                                 border_color: RGBA::BLUE,
                                 corner: [Px(5.0); 4],
                                 callback: Some(Self::callback),
-                                message: ENTRY_ACTION,
+                                message: Self::MESSAGE,
                                 ..Default::default()
                             }
                             .wrap_childs(
@@ -67,7 +71,7 @@ impl ToolTipView {
                                 border_color: RGBA::BLUE,
                                 corner: [Px(5.0); 4],
                                 callback: Some(Self::callback),
-                                message: ENTRY_ACTION,
+                                message: Self::MESSAGE,
                                 ..Default::default()
                             }
                             .wrap_childs(
@@ -89,7 +93,7 @@ impl ToolTipView {
                                 border_color: RGBA::BLUE,
                                 corner: [Px(5.0); 4],
                                 callback: Some(Self::callback),
-                                message: ENTRY_ACTION,
+                                message: Self::MESSAGE,
                                 ..Default::default()
                             }
                             .wrap_childs(
@@ -110,7 +114,7 @@ impl ToolTipView {
                                 border_color: RGBA::BLUE,
                                 corner: [Px(5.0); 4],
                                 callback: Some(Self::callback),
-                                message: ENTRY_ACTION,
+                                message: Self::MESSAGE,
                                 ..Default::default()
                             }
                             .wrap_childs(
@@ -135,8 +139,60 @@ impl ToolTipView {
         if self.is_active() {
             ui.remove_element(self.id);
 
-            self.id = u32::MAX;
+            self.id = 0;
             ui.layout_changed();
+        }
+    }
+
+    pub fn proceed_event(&mut self, event: QueuedEvent, exp: &mut Explorer) {
+        let data = &mut exp.data;
+        match event.element_name {
+            "open" => {
+                let selected = {
+                    let mut ui = data.ui.borrow_mut();
+                    ui.get_element(data.selected_file).unwrap()
+                };
+
+                if selected.name == "folder" {
+                    let text_stuff = selected.child(1).unwrap();
+                    let text = text_stuff.get_text().unwrap();
+                    data.path.push(text);
+                    data.display_path();
+                } else {
+                    let id = selected.id();
+                    data.open_file(id);
+                }
+            }
+            "rename" => {
+                let mut ui = data.ui.borrow_mut();
+
+                let mut selected = ui.get_element(data.selected_file).unwrap();
+                let button: &mut Button = selected.downcast_mut(&mut ui).unwrap();
+                button.border = [1; 4];
+                button.callback = None;
+
+                let text_element = selected.child(1).unwrap().child(0).unwrap();
+                let text_element = ui.remove_element(text_element).unwrap();
+                let text = text_element.downcast().unwrap();
+
+                let mut text_input = TextInput::from(text);
+                text_input.on_blur = Some(on_submit);
+
+                let mut text_input = ui
+                    .add_child(text_input.wrap("input"), selected.child(1).unwrap())
+                    .unwrap();
+                TextInput::focus(&mut ui, text_input);
+                text_input
+                    .downcast_mut::<TextInput>(&mut ui)
+                    .unwrap()
+                    .set_cursor();
+            }
+            "properties" => {
+                let mut ui = data.ui.borrow_mut();
+                exp.properties_view.create(&mut ui, data.selected_file);
+                ui.layout_changed();
+            }
+            name => println!("{name}"),
         }
     }
 
@@ -162,8 +218,31 @@ impl ToolTipView {
     }
 }
 
-impl Default for ToolTipView {
-    fn default() -> Self {
-        Self { id: u32::MAX }
+fn on_submit(context: TextExitContext) {
+    let element = context.element;
+    let parent = element.parent.unwrap().parent.unwrap().get_mut(context.ui);
+
+    let container: &mut Button = parent.downcast_mut().unwrap();
+    container.border = [0; 4];
+    container.callback = Some(on_click);
+
+    context.ui.color_changed();
+}
+
+fn on_click(mut context: ButtonContext) {
+    let button: &mut Button = context.element.get_mut(context.ui).downcast_mut().unwrap();
+
+    match button.state {
+        ButtonState::Normal => {
+            button.color = RGBA::ZERO;
+        }
+        ButtonState::Hovered => {
+            button.color = RGBA::grey(40);
+        }
+        ButtonState::Pressed => {
+            button.color = RGBA::grey(60);
+        }
+        ButtonState::Disabled => unreachable!(),
     }
+    context.ui.color_changed();
 }

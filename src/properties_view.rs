@@ -1,12 +1,12 @@
 use iron_oxide::graphics::formats::RGBA;
 use iron_oxide::ui::{
     Absolute, Button, ButtonContext, ButtonState, Container, ElementBuilder, FlexDirection, Image,
-    Shadow, Text, Ui, UiRect, UiUnit,
+    QueuedEvent, Shadow, Text, Ui, UiRect, UiUnit,
 };
 use iron_oxide::ui::{Align, UiUnit::*};
 
 use crate::UiIcons;
-use crate::explorer::on_click_tooltip;
+use crate::explorer::{ExplorerData, PROPERTIES_ACTION, on_click_tooltip};
 
 #[derive(Default)]
 pub struct PropertiesView {
@@ -14,6 +14,13 @@ pub struct PropertiesView {
 }
 
 impl PropertiesView {
+    pub const MESSAGE: u16 = PROPERTIES_ACTION;
+
+    #[allow(unused)]
+    pub fn is_active(&self) -> bool {
+        self.id != 0
+    }
+
     pub fn create(&mut self, ui: &mut Ui, selected: u32) {
         let element = ui.get_element(selected).unwrap();
         let text_box = element.child(1).unwrap();
@@ -41,7 +48,6 @@ impl PropertiesView {
                     align: Align::Center,
                     width: Px(400.0),
                     height: Fit,
-                    //padding: UiRect::px(2.0),
                     color: RGBA::grey(35),
                     corner: [Px(7.0); 4],
                     border: [1; 4],
@@ -88,18 +94,18 @@ impl PropertiesView {
                                     height: Relative(1.0),
                                     padding: UiRect::px(6.0),
                                     callback: Some(on_click),
-                                    message: 5,
+                                    message: Self::MESSAGE,
                                     ..Default::default()
                                 }
                                 .wrap_childs(
-                                    "back",
+                                    "close",
                                     vec![
                                         Image {
                                             atlas_index: UiIcons::Close as u32,
                                             color: RGBA::grey(200),
                                             ..Default::default()
                                         }
-                                        .wrap_transparent("back_image"),
+                                        .wrap_transparent("close_image"),
                                     ],
                                 ),
                             ],
@@ -142,7 +148,7 @@ impl PropertiesView {
                             border_color: RGBA::BLUE,
                             corner: [Px(5.0); 4],
                             callback: Some(on_click_tooltip),
-                            message: 0,
+                            message: Self::MESSAGE,
                             ..Default::default()
                         }
                         .wrap_childs(
@@ -163,7 +169,7 @@ impl PropertiesView {
                             border_color: RGBA::BLUE,
                             corner: [Px(5.0); 4],
                             callback: Some(on_click_tooltip),
-                            message: 0,
+                            message: Self::MESSAGE,
                             ..Default::default()
                         }
                         .wrap_childs(
@@ -185,7 +191,7 @@ impl PropertiesView {
                             border_color: RGBA::BLUE,
                             corner: [Px(5.0); 4],
                             callback: Some(on_click_tooltip),
-                            message: 0,
+                            message: Self::MESSAGE,
                             ..Default::default()
                         }
                         .wrap_childs(
@@ -206,7 +212,7 @@ impl PropertiesView {
                             border_color: RGBA::BLUE,
                             corner: [Px(5.0); 4],
                             callback: Some(on_click_tooltip),
-                            message: 0,
+                            message: Self::MESSAGE,
                             ..Default::default()
                         }
                         .wrap_childs(
@@ -224,6 +230,18 @@ impl PropertiesView {
                 ),
             )
             .id();
+    }
+
+    #[allow(unused)]
+    pub fn proceed_event(&mut self, event: QueuedEvent, data: &mut ExplorerData) {
+        match event.element_name {
+            "close" => {
+                let mut ui = data.ui.borrow_mut();
+                ui.remove_element(self.id).unwrap();
+                self.id = 0;
+            }
+            _ => unreachable!(),
+        }
     }
 }
 

@@ -59,7 +59,7 @@ impl App {
         let ui = Rc::new(RefCell::new(Ui::create(true)));
         let mut explorer = Explorer::new(ui.clone());
 
-        explorer.display_path();
+        explorer.data.display_path();
 
         Self {
             window: None,
@@ -147,12 +147,10 @@ impl ApplicationHandler for App {
                 let mut ui = self.ui.borrow_mut();
                 match (button, state) {
                     (MouseButton::Left, ElementState::Released) => {
-                        self.explorer.mouse_click(&mut ui)
+                        self.explorer.mouse_click(&mut ui);
                     }
                     (MouseButton::Right, ElementState::Pressed) => {
-                        if state == ElementState::Pressed && self.explorer.right_click(&mut ui) {
-                            window.request_redraw();
-                        }
+                        self.explorer.right_click(&mut ui);
                     }
                     _ => (),
                 }
