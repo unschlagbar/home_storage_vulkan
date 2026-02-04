@@ -402,7 +402,7 @@ impl ExplorerData {
     fn submit(&mut self, event: QueuedEvent) {
         if event.element_id == self.path_bar {
             self.submit_new_path(event);
-        } else {
+        } else if event.element_name == "inline rename" {
             let mut ui = self.ui.borrow_mut();
             let text_input = ui.get_element(event.element_id).unwrap();
 

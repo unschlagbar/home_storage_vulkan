@@ -179,7 +179,7 @@ impl ToolTipView {
                 text_input.on_blur = Some(on_submit);
 
                 let mut text_input = ui
-                    .add_child(text_input.wrap("input"), selected.child(1).unwrap())
+                    .add_child(text_input.wrap("inline rename"), selected.child(1).unwrap())
                     .unwrap();
                 TextInput::focus(&mut ui, text_input);
                 text_input

@@ -1,7 +1,7 @@
 use iron_oxide::graphics::formats::RGBA;
 use iron_oxide::ui::{
-    Absolute, Button, ButtonContext, ButtonState, Container, ElementBuilder, FlexDirection, Image,
-    QueuedEvent, Shadow, Text, Ui, UiRect, UiUnit,
+    Absolute, Button, ButtonContext, ButtonState, Container, ElementBuilder, FlexAlign,
+    FlexDirection, Image, QueuedEvent, Shadow, Text, TextInput, Ui, UiRect, UiUnit,
 };
 use iron_oxide::ui::{Align, UiUnit::*};
 
@@ -116,6 +116,7 @@ impl PropertiesView {
                             width: Relative(1.0),
                             border: [0, 0, 0, 1],
                             border_color: RGBA::GREEN,
+                            flex_direction: FlexDirection::Horizontal,
                             ..Default::default()
                         }
                         .wrap_childs_transparent(
@@ -137,6 +138,26 @@ impl PropertiesView {
                                             ..Default::default()
                                         }
                                         .wrap_childs_transparent("", Vec::new()),
+                                    ],
+                                ),
+                                Container {
+                                    color: RGBA::grey(25),
+                                    margin: UiRect::right(24.0),
+                                    height: Fit,
+                                    width: Fill(1.0),
+                                    flex_align: FlexAlign::Center,
+                                    border: [1; 4],
+                                    corner: [Px(5.0); 4],
+                                    padding: UiRect::px(5.0),
+                                    ..Default::default()
+                                }
+                                .wrap_childs_transparent(
+                                    "",
+                                    vec![
+                                        TextInput {
+                                            ..Default::default()
+                                        }
+                                        .wrap(""),
                                     ],
                                 ),
                             ],
