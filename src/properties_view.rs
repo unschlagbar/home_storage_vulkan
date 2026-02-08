@@ -1,12 +1,18 @@
+use std::fs::File;
+use std::path::PathBuf;
+use std::time::UNIX_EPOCH;
+
 use iron_oxide::graphics::formats::RGBA;
+use iron_oxide::primitives::Date;
 use iron_oxide::ui::{
     Absolute, Button, ButtonContext, ButtonState, Container, ElementBuilder, FlexAlign,
-    FlexDirection, Image, QueuedEvent, Shadow, Text, TextInput, Ui, UiRect, UiUnit,
+    FlexDirection, Image, QueuedEvent, Shadow, Text, TextInput, Ui, UiElement, UiRect,
 };
 use iron_oxide::ui::{Align, UiUnit::*};
 
 use crate::UiIcons;
-use crate::explorer::{ExplorerData, PROPERTIES_ACTION, on_click_tooltip};
+use crate::explorer::{ExplorerData, PROPERTIES_ACTION};
+use crate::file_size::FileSize;
 
 #[derive(Default)]
 pub struct PropertiesView {
@@ -21,8 +27,8 @@ impl PropertiesView {
         self.id != 0
     }
 
-    pub fn create(&mut self, ui: &mut Ui, selected: u32) {
-        let element = ui.get_element(selected).unwrap();
+    pub fn create(&mut self, ui: &mut Ui, data: &ExplorerData) {
+        let element = ui.get_element(data.selected_file).unwrap();
         let text_box = element.child(1).unwrap();
         let text_element = text_box.child(0).unwrap();
         let text: &Text = text_element.downcast_ref().unwrap();
@@ -30,6 +36,9 @@ impl PropertiesView {
         let name = &text.text;
         let is_dir = element.name == "folder";
         let extention = name.split(".").last().unwrap_or_default();
+
+        let path = data.path.clone().join(name);
+        let file = File::open(&path).unwrap();
 
         let icon = if is_dir {
             UiIcons::Folder
@@ -124,7 +133,7 @@ impl PropertiesView {
                             vec![
                                 Container {
                                     color: RGBA::ZERO,
-                                    margin: UiRect::px(24.0),
+                                    margin: UiRect::px(16.0),
                                     height: Px(48.0),
                                     width: Px(48.0),
                                     ..Default::default()
@@ -142,7 +151,7 @@ impl PropertiesView {
                                 ),
                                 Container {
                                     color: RGBA::grey(25),
-                                    margin: UiRect::right(24.0),
+                                    margin: UiRect::right(16.0),
                                     height: Fit,
                                     width: Fill(1.0),
                                     flex_align: FlexAlign::Center,
@@ -155,6 +164,7 @@ impl PropertiesView {
                                     "",
                                     vec![
                                         TextInput {
+                                            text: name.clone(),
                                             ..Default::default()
                                         }
                                         .wrap(""),
@@ -162,91 +172,14 @@ impl PropertiesView {
                                 ),
                             ],
                         ),
-                        Button {
-                            width: UiUnit::FILL,
-                            height: Px(30.0),
+                        Container {
                             color: RGBA::ZERO,
-                            border_color: RGBA::BLUE,
-                            corner: [Px(5.0); 4],
-                            callback: Some(on_click_tooltip),
-                            message: Self::MESSAGE,
-                            ..Default::default()
-                        }
-                        .wrap_childs(
-                            "open",
-                            vec![
-                                Text {
-                                    text: "Öffnen".to_string(),
-                                    color: RGBA::grey(220),
-                                    ..Default::default()
-                                }
-                                .wrap_transparent(""),
-                            ],
-                        ),
-                        Button {
-                            width: UiUnit::FILL,
-                            height: Px(30.0),
-                            color: RGBA::ZERO,
-                            border_color: RGBA::BLUE,
-                            corner: [Px(5.0); 4],
-                            callback: Some(on_click_tooltip),
-                            message: Self::MESSAGE,
-                            ..Default::default()
-                        }
-                        .wrap_childs(
-                            "rename",
-                            vec![
-                                Text {
-                                    text: "Umbennenen".to_string(),
-                                    color: RGBA::grey(220),
-
-                                    ..Default::default()
-                                }
-                                .wrap_transparent(""),
-                            ],
-                        ),
-                        Button {
+                            height: Fit,
                             width: Relative(1.0),
-                            height: Px(30.0),
-                            color: RGBA::ZERO,
-                            border_color: RGBA::BLUE,
-                            corner: [Px(5.0); 4],
-                            callback: Some(on_click_tooltip),
-                            message: Self::MESSAGE,
+                            padding: UiRect::px(5.0),
                             ..Default::default()
                         }
-                        .wrap_childs(
-                            "delete",
-                            vec![
-                                Text {
-                                    text: "Löschen".to_string(),
-                                    color: RGBA::grey(220),
-                                    ..Default::default()
-                                }
-                                .wrap_transparent(""),
-                            ],
-                        ),
-                        Button {
-                            width: Relative(1.0),
-                            height: Px(30.0),
-                            color: RGBA::ZERO,
-                            border_color: RGBA::BLUE,
-                            corner: [Px(5.0); 4],
-                            callback: Some(on_click_tooltip),
-                            message: Self::MESSAGE,
-                            ..Default::default()
-                        }
-                        .wrap_childs(
-                            "properties",
-                            vec![
-                                Text {
-                                    text: "Eigenschaften".to_string(),
-                                    color: RGBA::grey(220),
-                                    ..Default::default()
-                                }
-                                .wrap_transparent(""),
-                            ],
-                        ),
+                        .wrap_childs_transparent("", attributes(file, path)),
                     ],
                 ),
             )
@@ -274,12 +207,101 @@ fn on_click(mut context: ButtonContext) {
             button.color = RGBA::ZERO;
         }
         ButtonState::Hovered => {
-            button.color = RGBA::grey(40);
+            button.color = RGBA::grey(50);
         }
         ButtonState::Pressed => {
-            button.color = RGBA::grey(60);
+            button.color = RGBA::grey(70);
         }
         ButtonState::Disabled => unreachable!(),
     }
     context.ui.color_changed();
+}
+
+fn attributes(file: File, path: PathBuf) -> Vec<UiElement> {
+    let meta = file.metadata().unwrap();
+    let file_type = meta.file_type();
+
+    let mut file_size = FileSize(meta.len()).to_string();
+    if meta.len() >= 1024 {
+        file_size += &format!("\n{}B", meta.len())
+    }
+
+    let create_time = meta.created().unwrap().duration_since(UNIX_EPOCH).unwrap();
+    let create_time = Date::from_unix_secs(create_time.as_secs());
+
+    let modify_time = meta.modified().unwrap().duration_since(UNIX_EPOCH).unwrap();
+    let modify_time = Date::from_unix_secs(modify_time.as_secs());
+
+    let access_time = meta.accessed().unwrap().duration_since(UNIX_EPOCH).unwrap();
+    let access_time = Date::from_unix_secs(access_time.as_secs());
+
+    let typ = if file_type.is_symlink() {
+        "System Link"
+    } else if file_type.is_dir() {
+        "Folder"
+    } else if file_type.is_file() {
+        "File"
+    } else {
+        "Unknown"
+    }
+    .to_string();
+
+    let location = path.display().to_string();
+
+    vec![
+        attri("Type".to_string(), typ),
+        attri("Location".to_string(), location),
+        attri("Size".to_string(), file_size),
+        attri("Created".to_string(), create_time.to_string()),
+        attri("Modified".to_string(), modify_time.to_string()),
+        attri("Accessed".to_string(), access_time.to_string()),
+    ]
+}
+
+fn attri(name: String, value: String) -> UiElement {
+    Container {
+        color: RGBA::ZERO,
+        width: Relative(1.0),
+        height: Fit,
+        padding: UiRect::from(&[16.0, 8.0, 16.0, 8.0]),
+        flex_direction: FlexDirection::Horizontal,
+        ..Default::default()
+    }
+    .wrap_childs(
+        "",
+        vec![
+            Container {
+                color: RGBA::ZERO,
+                width: Relative(0.3),
+                height: Fit,
+                ..Default::default()
+            }
+            .wrap_childs(
+                "",
+                vec![
+                    Text {
+                        text: name,
+                        ..Default::default()
+                    }
+                    .wrap(""),
+                ],
+            ),
+            Container {
+                color: RGBA::ZERO,
+                width: Relative(0.7),
+                height: Fit,
+                ..Default::default()
+            }
+            .wrap_childs(
+                "",
+                vec![
+                    Text {
+                        text: value,
+                        ..Default::default()
+                    }
+                    .wrap(""),
+                ],
+            ),
+        ],
+    )
 }

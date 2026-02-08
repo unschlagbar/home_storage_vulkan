@@ -3,8 +3,7 @@ use iron_oxide::{
     primitives::Vec2,
     ui::{
         Absolute, Button, ButtonContext, ButtonState, ElementBuilder, QueuedEvent, Shadow, Text,
-        TextExitContext, TextInput, Ui, UiRect,
-        UiUnit::{self, *},
+        TextExitContext, TextInput, Ui, UiElement, UiRect, UiUnit::*,
     },
 };
 
@@ -43,96 +42,42 @@ impl ToolTipView {
                     .wrap_childs(
                         "",
                         vec![
-                            Button {
-                                width: UiUnit::FILL,
-                                height: Px(30.0),
-                                color: RGBA::ZERO,
-                                border_color: RGBA::BLUE,
-                                corner: [Px(5.0); 4],
-                                callback: Some(Self::callback),
-                                message: Self::MESSAGE,
-                                ..Default::default()
-                            }
-                            .wrap_childs(
-                                "open",
-                                vec![
-                                    Text {
-                                        text: "Öffnen".to_string(),
-                                        color: RGBA::grey(220),
-                                        ..Default::default()
-                                    }
-                                    .wrap_transparent(""),
-                                ],
-                            ),
-                            Button {
-                                width: UiUnit::FILL,
-                                height: Px(30.0),
-                                color: RGBA::ZERO,
-                                border_color: RGBA::BLUE,
-                                corner: [Px(5.0); 4],
-                                callback: Some(Self::callback),
-                                message: Self::MESSAGE,
-                                ..Default::default()
-                            }
-                            .wrap_childs(
-                                "rename",
-                                vec![
-                                    Text {
-                                        text: "Umbennenen".to_string(),
-                                        color: RGBA::grey(220),
-
-                                        ..Default::default()
-                                    }
-                                    .wrap_transparent(""),
-                                ],
-                            ),
-                            Button {
-                                width: Relative(1.0),
-                                height: Px(30.0),
-                                color: RGBA::ZERO,
-                                border_color: RGBA::BLUE,
-                                corner: [Px(5.0); 4],
-                                callback: Some(Self::callback),
-                                message: Self::MESSAGE,
-                                ..Default::default()
-                            }
-                            .wrap_childs(
-                                "delete",
-                                vec![
-                                    Text {
-                                        text: "Löschen".to_string(),
-                                        color: RGBA::grey(220),
-                                        ..Default::default()
-                                    }
-                                    .wrap_transparent(""),
-                                ],
-                            ),
-                            Button {
-                                width: Relative(1.0),
-                                height: Px(30.0),
-                                color: RGBA::ZERO,
-                                border_color: RGBA::BLUE,
-                                corner: [Px(5.0); 4],
-                                callback: Some(Self::callback),
-                                message: Self::MESSAGE,
-                                ..Default::default()
-                            }
-                            .wrap_childs(
-                                "properties",
-                                vec![
-                                    Text {
-                                        text: "Eigenschaften".to_string(),
-                                        color: RGBA::grey(220),
-                                        ..Default::default()
-                                    }
-                                    .wrap_transparent(""),
-                                ],
-                            ),
+                            Self::button("open", "Öffnen"),
+                            Self::button("cut", "Auschneiden"),
+                            Self::button("copy", "Kopieren"),
+                            Self::button("copy_path", "Pfad Kopieren"),
+                            Self::button("rename", "Umbenennen"),
+                            Self::button("delete", "Löschen"),
+                            Self::button("properties", "Eigenschaften"),
                         ],
                     ),
                 )
                 .id();
         }
+    }
+
+    fn button(name: &'static str, value: &str) -> UiElement {
+        Button {
+            width: Relative(1.0),
+            height: Px(30.0),
+            color: RGBA::ZERO,
+            border_color: RGBA::BLUE,
+            corner: [Px(5.0); 4],
+            callback: Some(Self::callback),
+            message: Self::MESSAGE,
+            ..Default::default()
+        }
+        .wrap_childs(
+            name,
+            vec![
+                Text {
+                    text: value.to_string(),
+                    color: RGBA::grey(220),
+                    ..Default::default()
+                }
+                .wrap_transparent(""),
+            ],
+        )
     }
 
     pub fn remove(&mut self, ui: &mut Ui) {
@@ -168,7 +113,7 @@ impl ToolTipView {
 
                 let mut selected = ui.get_element(data.selected_file).unwrap();
                 let button: &mut Button = selected.downcast_mut(&mut ui).unwrap();
-                button.border = [1; 4];
+                button.border_color = RGBA::GREEN;
                 button.callback = None;
 
                 let text_element = selected.child(1).unwrap().child(0).unwrap();
@@ -176,7 +121,7 @@ impl ToolTipView {
                 let text = text_element.downcast().unwrap();
 
                 let mut text_input = TextInput::from(text);
-                text_input.on_blur = Some(on_submit);
+                text_input.on_blur = Some(Self::on_submit);
 
                 let mut text_input = ui
                     .add_child(text_input.wrap("inline rename"), selected.child(1).unwrap())
@@ -189,7 +134,7 @@ impl ToolTipView {
             }
             "properties" => {
                 let mut ui = data.ui.borrow_mut();
-                exp.properties_view.create(&mut ui, data.selected_file);
+                exp.properties_view.create(&mut ui, &data);
                 ui.layout_changed();
             }
             name => println!("{name}"),
@@ -216,33 +161,15 @@ impl ToolTipView {
         }
         context.ui.color_changed();
     }
-}
 
-fn on_submit(context: TextExitContext) {
-    let element = context.element;
-    let parent = element.parent.unwrap().parent.unwrap().get_mut(context.ui);
+    fn on_submit(context: TextExitContext) {
+        let element = context.element;
+        let parent = element.parent.unwrap().parent.unwrap().get_mut(context.ui);
 
-    let container: &mut Button = parent.downcast_mut().unwrap();
-    container.border = [0; 4];
-    container.callback = Some(on_click);
+        let container: &mut Button = parent.downcast_mut().unwrap();
+        container.border_color = RGBA::ZERO;
+        container.callback = Some(Self::callback);
 
-    context.ui.color_changed();
-}
-
-fn on_click(mut context: ButtonContext) {
-    let button: &mut Button = context.element.get_mut(context.ui).downcast_mut().unwrap();
-
-    match button.state {
-        ButtonState::Normal => {
-            button.color = RGBA::ZERO;
-        }
-        ButtonState::Hovered => {
-            button.color = RGBA::grey(40);
-        }
-        ButtonState::Pressed => {
-            button.color = RGBA::grey(60);
-        }
-        ButtonState::Disabled => unreachable!(),
+        context.ui.color_changed();
     }
-    context.ui.color_changed();
 }

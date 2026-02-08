@@ -33,6 +33,7 @@ pub struct ExplorerData {
 
     pub selected_file: u32,
 
+    pub clipboard: Clipboard,
     pub path: PathBuf,
     pub ui: Rc<RefCell<Ui>>,
 }
@@ -179,6 +180,8 @@ impl ExplorerData {
             content_window,
             selected_file: 0,
             path_bar,
+
+            clipboard: Clipboard::None,
             path,
             ui,
         }
@@ -228,12 +231,13 @@ impl ExplorerData {
 
                     let button = Button {
                         color: RGBA::ZERO,
-                        border_color: RGBA::GREEN,
+                        border_color: RGBA::ZERO,
                         height: Fit,
                         width: UiUnit::Fill(1.0),
                         flex_direction: FlexDirection::Horizontal,
                         padding: UiRect::horizontal(Px(2.0)),
                         corner: [Px(5.0); 4],
+                        border: [1; 4],
                         callback: Some(on_click),
                         cursor: CursorIcon::Default,
                         message: OPEN,
@@ -454,14 +458,29 @@ impl Explorer {
     }
 
     pub fn right_click(&mut self, ui: &mut Ui) {
+        if self.data.selected_file != 0 {
+            if let Some(mut element) = ui.get_element(self.data.selected_file) {
+                let button: &mut Button = element.downcast_mut(ui).unwrap();
+                if button.border_color != RGBA::GREEN {
+                    button.border_color = RGBA::ZERO;
+                }
+            }
+            self.data.selected_file = 0;
+            ui.color_changed();
+        }
+
         if let Some(hovered) = ui.get_hovered() {
             if hovered.name == "file" || hovered.name == "folder" {
                 self.data.selected_file = hovered.id();
 
+                let button: &mut Button = hovered.downcast_mut().unwrap();
+                button.border_color = RGBA::grey(100);
+
                 let pos = ui.cursor_pos.into_f32();
                 self.tooltip_view.create(ui, pos);
+
+                ui.layout_changed();
             }
-            ui.layout_changed();
         }
     }
 
@@ -488,31 +507,16 @@ fn on_click(mut context: ButtonContext) {
     context.ui.color_changed();
 }
 
-pub fn on_click_tooltip(mut context: ButtonContext) {
-    let button: &mut Button = context.element.get_mut(context.ui).downcast_mut().unwrap();
-
-    match button.state {
-        ButtonState::Normal => {
-            button.color = RGBA::ZERO;
-            button.border = [0; 4];
-        }
-        ButtonState::Hovered => {
-            button.color = RGBA::grey(40);
-            button.border = [1; 4];
-        }
-        ButtonState::Pressed => {
-            button.color = RGBA::grey(60);
-            button.border = [1; 4];
-        }
-        ButtonState::Disabled => unreachable!(),
-    }
-    context.ui.color_changed();
-}
-
 fn tick_error(context: ButtonContext) {
     let this: &Ticking<Absolute> = context.element.downcast_ref().unwrap();
     if this.time.elapsed().as_millis() > 750 {
         context.ui.remove_element(context.element);
         context.ui.color_changed();
     }
+}
+
+pub enum Clipboard {
+    None,
+    Copy(Vec<PathBuf>),
+    Cut(Vec<PathBuf>),
 }

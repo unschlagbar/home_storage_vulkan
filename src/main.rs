@@ -6,6 +6,7 @@ mod app;
 mod asset_manager;
 mod explorer;
 mod file_size;
+mod gen_fef;
 mod network;
 mod properties_view;
 mod render_assets;
