@@ -11,7 +11,6 @@ layout(location = 3) in int width;
 layout(location = 4) in int height;
 layout(location = 5) in uint blur;
 layout(location = 6) in uint corner; 
-layout(location = 7) in int z_index;
 
 layout(location = 0) out vec2 fragTexCoord;
 layout(location = 1) out vec2 fragBoxHalf;
@@ -29,5 +28,5 @@ void main() {
     fragBlur = blur;
     fragCorner = corner;
 
-    gl_Position = view_proj * vec4(vec2(x - blur, y - blur) + quadSize * uv, z_index, 1.0);
+    gl_Position = view_proj * vec4(vec2(x - blur, y - blur) + quadSize * uv, 1.0, 1.0);
 }

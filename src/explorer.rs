@@ -3,10 +3,11 @@ use std::fs::File;
 use std::io::ErrorKind;
 use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
+use iron_oxide::primitives::Vec2;
 use iron_oxide::ui::text_layout::{TextLayout, TextOverflow};
 use iron_oxide::ui::{
-    Absolute, Align, ElementBuilder, FlexDirection, Image, ScrollPanel, TextInput, Ticking, UiRef,
-    UiUnit,
+    Absolute, Align, ElementBuilder, FlexDirection, Image, ScrollPanel, TextInput, Ticking,
+    UiElement, UiRef, UiUnit,
 };
 use iron_oxide::{
     graphics::formats::RGBA,
@@ -339,35 +340,39 @@ impl ExplorerData {
                     self.path = path.into();
                 }
 
-                let e_message = Ticking {
-                    inner: Absolute {
-                        color: RGBA::grey(45),
-                        offset: ui.cursor_pos.into_f32(),
-                        border: [1; 4],
-                        width: Fit,
-                        height: Fit,
-                        padding: UiRect::px(5.0),
-                        corner: [Px(5.0); 4],
-                        ..Default::default()
-                    },
-                    tick: Some(tick_error),
-                    ..Default::default()
-                }
-                .wrap_childs(
-                    "e_msg",
-                    vec![
-                        Text {
-                            text: error.to_string(),
-                            color: RGBA::RED,
-                            ..Default::default()
-                        }
-                        .wrap(""),
-                    ],
-                );
+                let error_msg = self.error_msg(ui.cursor_pos.into_f32(), error.to_string());
 
-                ui.add_child_to_root(e_message);
+                ui.add_child_to_root(error_msg);
             }
         }
+    }
+
+    pub fn error_msg(&self, pos: Vec2<f32>, text: String) -> UiElement {
+        Ticking {
+            inner: Absolute {
+                color: RGBA::grey(45),
+                offset: pos,
+                border: [1; 4],
+                width: Fit,
+                height: Fit,
+                padding: UiRect::px(10.0),
+                corner: [Px(5.0); 4],
+                ..Default::default()
+            },
+            tick: Some(tick_error),
+            ..Default::default()
+        }
+        .wrap_childs(
+            "e_msg",
+            vec![
+                Text {
+                    text,
+                    color: RGBA::RED,
+                    ..Default::default()
+                }
+                .wrap(""),
+            ],
+        )
     }
 
     pub fn open_entry(&mut self, event: QueuedEvent) {
@@ -425,6 +430,17 @@ impl ExplorerData {
             self.display_path();
         }
     }
+
+    pub fn selected_path(&self) -> PathBuf {
+        let selected = {
+            let mut ui = self.ui.borrow_mut();
+            ui.get_element(self.selected_file).unwrap()
+        };
+
+        self.path
+            .clone()
+            .join(selected.child(1).unwrap().get_text().unwrap())
+    }
 }
 
 impl Explorer {
@@ -440,7 +456,6 @@ impl Explorer {
         let mut tooltip_view = self.tooltip_view;
 
         if event.event.is_release() {
-            if self.tooltip_view.is_active() {}
             match event.message {
                 OPEN => self.data.open_entry(event),
                 GO_BACK => self.data.back(),
@@ -458,28 +473,30 @@ impl Explorer {
     }
 
     pub fn right_click(&mut self, ui: &mut Ui) {
-        if self.data.selected_file != 0 {
-            if let Some(mut element) = ui.get_element(self.data.selected_file) {
-                let button: &mut Button = element.downcast_mut(ui).unwrap();
-                if button.border_color != RGBA::GREEN {
-                    button.border_color = RGBA::ZERO;
-                }
-            }
-            self.data.selected_file = 0;
-            ui.color_changed();
+        let mut last_sel = 0;
+
+        if let Some(hovered) = ui.get_hovered()
+            && (hovered.name == "file" || hovered.name == "folder")
+        {
+            last_sel = self.data.selected_file;
+            self.data.selected_file = hovered.id();
+
+            let button: &mut Button = hovered.downcast_mut().unwrap();
+            button.border_color = RGBA::grey(100);
+
+            let pos = ui.cursor_pos.into_f32();
+            self.tooltip_view.create(ui, pos);
+
+            ui.layout_changed();
         }
 
-        if let Some(hovered) = ui.get_hovered() {
-            if hovered.name == "file" || hovered.name == "folder" {
-                self.data.selected_file = hovered.id();
-
-                let button: &mut Button = hovered.downcast_mut().unwrap();
-                button.border_color = RGBA::grey(100);
-
-                let pos = ui.cursor_pos.into_f32();
-                self.tooltip_view.create(ui, pos);
-
-                ui.layout_changed();
+        if last_sel != 0
+            && last_sel != self.data.selected_file
+            && let Some(mut element) = ui.get_element(last_sel)
+        {
+            let button: &mut Button = element.downcast_mut(ui).unwrap();
+            if button.border_color != RGBA::GREEN {
+                button.border_color = RGBA::ZERO;
             }
         }
     }
@@ -515,8 +532,15 @@ fn tick_error(context: ButtonContext) {
     }
 }
 
+#[allow(unused)]
 pub enum Clipboard {
     None,
-    Copy(Vec<PathBuf>),
-    Cut(Vec<PathBuf>),
+    Copy(PathBuf),
+    Cut(PathBuf),
+    CopyBatch(Vec<PathBuf>),
+    CutBatch(Vec<PathBuf>),
+}
+
+impl Clipboard {
+    //pub fn clear(&mut self) {}
 }

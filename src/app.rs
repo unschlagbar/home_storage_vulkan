@@ -35,7 +35,7 @@ const LIMIT_FPS: bool = true;
 const ONLY_DRAW_ON_UPDATE: bool = true;
 const DEFAULT_FPS: u64 = 60;
 
-pub const DEBUG_PERF: bool = false;
+pub const DEBUG_PERF: bool = true;
 
 pub struct App {
     pub window: Option<Window>,

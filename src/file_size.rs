@@ -1,7 +1,9 @@
+use std::fmt;
+
 pub struct FileSize(pub u64);
 
-impl ToString for FileSize {
-    fn to_string(&self) -> String {
+impl fmt::Display for FileSize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let bytes = self.0 as f64;
 
         const KB: f64 = 1024.0;
@@ -10,15 +12,15 @@ impl ToString for FileSize {
         const TB: f64 = GB * 1024.0;
 
         if bytes >= TB {
-            format!("{:.1}TB", bytes / TB)
+            write!(f, "{:.1}TB", bytes / TB)
         } else if bytes >= GB {
-            format!("{:.1}GB", bytes / GB)
+            write!(f, "{:.1}GB", bytes / GB)
         } else if bytes >= MB {
-            format!("{:.1}MB", bytes / MB)
+            write!(f, "{:.1}MB", bytes / MB)
         } else if bytes >= KB {
-            format!("{:.1}KB", bytes / KB)
+            write!(f, "{:.1}KB", bytes / KB)
         } else {
-            format!("{}B", self.0)
+            write!(f, "{}B", self.0)
         }
     }
 }

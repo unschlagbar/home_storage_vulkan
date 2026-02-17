@@ -7,7 +7,7 @@ use iron_oxide::{
     },
 };
 
-use crate::explorer::{ENTRY_ACTION, Explorer};
+use crate::explorer::{Clipboard, ENTRY_ACTION, Explorer};
 
 #[derive(Clone, Copy, Default)]
 pub struct ToolTipView {
@@ -34,8 +34,10 @@ impl ToolTipView {
                         width: Px(200.0),
                         height: Fit,
                         padding: UiRect::px(2.0),
-                        color: RGBA::grey(50),
+                        color: RGBA::grey(20),
                         corner: [Px(7.0); 4],
+                        border: [1; 4],
+                        border_color: RGBA::grey(100),
                         shadow: Shadow::new(15, RGBA::rgba(25, 25, 25, 200)),
                         ..Default::default()
                     }
@@ -43,6 +45,7 @@ impl ToolTipView {
                         "",
                         vec![
                             Self::button("open", "Öffnen"),
+                            Self::button("paste", "Einfügen"),
                             Self::button("cut", "Auschneiden"),
                             Self::button("copy", "Kopieren"),
                             Self::button("copy_path", "Pfad Kopieren"),
@@ -108,6 +111,22 @@ impl ToolTipView {
                     data.open_file(id);
                 }
             }
+            "cut" => {
+                let mut ui = exp.data.ui.borrow_mut();
+                let selected = { ui.get_element(exp.data.selected_file).unwrap() };
+                ui.color_changed();
+
+                let mut text_element = selected.child(1).unwrap().child(0).unwrap();
+                let text_widget: &mut Text = text_element.downcast_mut(&mut ui).unwrap();
+                text_widget.color = RGBA::grey(100);
+
+                let path = exp.data.path.clone().join(&text_widget.text);
+                exp.data.clipboard = Clipboard::Cut(path)
+            }
+            "copy" => {
+                let path = exp.data.selected_path();
+                exp.data.clipboard = Clipboard::Copy(path)
+            }
             "rename" => {
                 let mut ui = data.ui.borrow_mut();
 
@@ -134,7 +153,7 @@ impl ToolTipView {
             }
             "properties" => {
                 let mut ui = data.ui.borrow_mut();
-                exp.properties_view.create(&mut ui, &data);
+                exp.properties_view.create(&mut ui, data);
                 ui.layout_changed();
             }
             name => println!("{name}"),

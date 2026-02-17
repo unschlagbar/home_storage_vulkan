@@ -102,7 +102,7 @@ impl RenderAssets {
             window_size,
             render_pass,
             &[ubo_layout],
-            false,
+            true,
             base_shaders,
         ));
 
@@ -111,7 +111,7 @@ impl RenderAssets {
             window_size,
             render_pass,
             &[ubo_layout, img_layout],
-            false,
+            true,
             font_shaders,
         ));
 
@@ -129,7 +129,7 @@ impl RenderAssets {
             window_size,
             render_pass,
             &[ubo_layout, img_layout],
-            false,
+            true,
             atlas_shaders,
         ));
 
