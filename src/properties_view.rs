@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs::Metadata;
 use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 
@@ -38,7 +38,7 @@ impl PropertiesView {
         let extention = name.split(".").last().unwrap_or_default();
 
         let path = data.path.clone().join(name);
-        let file = File::open(&path).unwrap();
+        let meta = path.metadata().unwrap();
 
         let icon = if is_dir {
             UiIcons::Folder
@@ -179,7 +179,7 @@ impl PropertiesView {
                             padding: UiRect::px(5.0),
                             ..Default::default()
                         }
-                        .wrap_childs_transparent("", attributes(file, path)),
+                        .wrap_childs_transparent("", attributes(meta, path)),
                     ],
                 ),
             )
@@ -217,8 +217,7 @@ fn on_click(mut context: ButtonContext) {
     context.ui.color_changed();
 }
 
-fn attributes(file: File, path: PathBuf) -> Vec<UiElement> {
-    let meta = file.metadata().unwrap();
+fn attributes(meta: Metadata, path: PathBuf) -> Vec<UiElement> {
     let file_type = meta.file_type();
 
     let mut file_size = FileSize(meta.len()).to_string();
