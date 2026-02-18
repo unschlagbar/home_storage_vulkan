@@ -53,8 +53,6 @@ impl ExplorerData {
             .unwrap_or(Self::ROOT_PATH.to_string())
             .into();
 
-        println!("path: {path:?}");
-
         let content_window = {
             let mut ui = ui.borrow_mut();
 
