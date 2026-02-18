@@ -1,5 +1,4 @@
 use std::env;
-use std::fs::File;
 use std::io::ErrorKind;
 use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
@@ -53,6 +52,8 @@ impl ExplorerData {
             .ok()
             .unwrap_or(Self::ROOT_PATH.to_string())
             .into();
+
+        println!("path: {path:?}");
 
         let content_window = {
             let mut ui = ui.borrow_mut();
@@ -291,8 +292,7 @@ impl ExplorerData {
                     );
 
                     if !is_dir {
-                        let file = File::open(entry.path()).unwrap();
-                        let size = file.metadata().unwrap().len();
+                        let size = entry.metadata().unwrap().len();
                         ui.add_child(
                             Text {
                                 text: FileSize(size).to_string(),
