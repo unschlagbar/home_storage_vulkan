@@ -1,9 +1,11 @@
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub enum LogicEvent {
     FolderSize(PathBuf),
 }
 
+#[derive(Debug)]
 pub enum RenderEvent {
-    FolderSize(usize),
+    FolderSize(u64),
 }

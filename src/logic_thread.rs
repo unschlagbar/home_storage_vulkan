@@ -6,8 +6,9 @@ use std::{
 use winit::event_loop::EventLoopProxy;
 
 use crate::{
-    thread_event::{LogicEvent, RenderEvent},
     network::Network,
+    properties_view::PropertiesView,
+    thread_event::{LogicEvent, RenderEvent},
 };
 
 pub struct Logic {
@@ -28,5 +29,14 @@ impl Logic {
 
     pub fn run(&mut self) {
         self.net.connection.lock().unwrap().send(&[1, 2, 4]);
+        loop {
+            match self.logic.recv() {
+                Ok(LogicEvent::FolderSize(path)) => {
+                    let size = PropertiesView::calculate_folder_size(path);
+                    let _ = self.proxy.send_event(RenderEvent::FolderSize(size));
+                }
+                Err(_) => return,
+            }
+        }
     }
 }

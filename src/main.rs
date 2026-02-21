@@ -8,11 +8,11 @@ mod asset_manager;
 mod explorer;
 mod file_size;
 mod gen_fef;
-mod thread_event;
 mod logic_thread;
 mod network;
 mod properties_view;
 mod render_assets;
+mod thread_event;
 mod tooltip_view;
 mod utils;
 mod vulkan_render;
@@ -27,7 +27,9 @@ pub mod file_handling;
 
 pub fn main() {
     let event_loop: EventLoop<RenderEvent> = EventLoop::with_user_event().build().unwrap();
-    let mut app = App::create(event_loop.create_proxy());
+    let (mut app, logic_thread) = App::create(event_loop.create_proxy());
 
     event_loop.run_app(&mut app).unwrap();
+    app.shutdown();
+    logic_thread.join().unwrap();
 }

@@ -1,12 +1,12 @@
-use crate::thread_event::{LogicEvent, RenderEvent};
 use crate::logic_thread::Logic;
 use crate::render_assets::RenderAssets;
+use crate::thread_event::{LogicEvent, RenderEvent};
 use crate::{explorer::Explorer, vulkan_render::VulkanRender};
 use iron_oxide::ui::Ui;
 use winit::event_loop::EventLoopProxy;
 
 use std::sync::mpsc::{self, Sender};
-use std::thread::spawn;
+use std::thread::{JoinHandle, spawn};
 use std::{
     cell::RefCell,
     rc::Rc,
@@ -42,6 +42,7 @@ pub struct App {
     pub ui: Rc<RefCell<Ui>>,
 
     pub explorer: Explorer,
+    #[allow(unused)]
     pub logic: Sender<LogicEvent>,
 
     pub target_frame_time: Duration,
@@ -49,11 +50,11 @@ pub struct App {
 }
 
 impl App {
-    pub fn create(proxy: EventLoopProxy<RenderEvent>) -> Self {
+    pub fn create(proxy: EventLoopProxy<RenderEvent>) -> (Self, JoinHandle<()>) {
         let renderer = None;
         let (tx, rx) = mpsc::channel::<LogicEvent>();
 
-        spawn(|| {
+        let logic_thread = spawn(|| {
             Logic::new(rx, proxy).run();
         });
 
@@ -62,16 +63,19 @@ impl App {
 
         explorer.data.display_path();
 
-        Self {
-            window: None,
-            renderer,
-            render_assets: RenderAssets::default(),
-            ui,
-            explorer,
-            logic: tx,
-            target_frame_time: Duration::from_millis(1000 / DEFAULT_FPS),
-            time: Instant::now(),
-        }
+        (
+            Self {
+                window: None,
+                renderer,
+                render_assets: RenderAssets::default(),
+                ui,
+                explorer,
+                logic: tx,
+                target_frame_time: Duration::from_millis(1000 / DEFAULT_FPS),
+                time: Instant::now(),
+            },
+            logic_thread,
+        )
     }
 
     pub fn get_framerate(&mut self, window: &Window) {
@@ -112,5 +116,9 @@ impl App {
             .with_visible(false);
 
         event_loop.create_window(window_attributes).unwrap()
+    }
+
+    pub fn shutdown(self) {
+        drop(self);
     }
 }

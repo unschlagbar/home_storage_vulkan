@@ -198,4 +198,12 @@ impl ApplicationHandler<RenderEvent> for App {
             renderer.destroy(&mut self.render_assets);
         }
     }
+
+    fn user_event(&mut self, _: &ActiveEventLoop, event: RenderEvent) {
+        self.explorer.proceed_message(event);
+        let ui = self.ui.borrow();
+        if ui.is_dirty() && let Some(window) = &self.window {
+            window.request_redraw();
+        }
+    }
 }

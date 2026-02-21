@@ -21,7 +21,7 @@ use winit::window::CursorIcon;
 use crate::UiIcons;
 use crate::file_size::FileSize;
 use crate::properties_view::PropertiesView;
-use crate::thread_event::LogicEvent;
+use crate::thread_event::{LogicEvent, RenderEvent};
 use crate::tooltip_view::ToolTipView;
 
 pub const OPEN: u16 = 1;
@@ -472,6 +472,13 @@ impl Explorer {
         }
 
         self.tooltip_view = tooltip_view;
+    }
+
+    pub fn proceed_message(&mut self, msg: RenderEvent) {
+        let mut ui = self.data.ui.borrow_mut();
+        match msg {
+            RenderEvent::FolderSize(size) => self.properties_view.update_folder_size(&mut ui, size),
+        }
     }
 
     pub fn right_click(&mut self, ui: &mut Ui) {
