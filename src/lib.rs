@@ -9,6 +9,7 @@ mod explorer;
 #[path = "file_handling/linux.rs"]
 mod file_handling;
 mod file_size;
+mod logic_event;
 mod network;
 mod properties_view;
 mod render_assets;
@@ -28,16 +29,17 @@ use winit::platform::android::{self, EventLoopBuilderExtAndroid};
 
 #[unsafe(no_mangle)]
 pub fn android_main(app: AndroidApp) {
-    //panic::set_hook(Box::new(|info| {
-    //    log::error!("Panic occurred: {:?}", info);
-    //}));
+    panic::set_hook(Box::new(|info| {
+        log::error!("Panic occurred: {:?}", info);
+    }));
 
-    //android_logger::init_once(
-    //    android_logger::Config::default().with_max_level(log::LevelFilter::max()),
-    //);
+    android_logger::init_once(
+        android_logger::Config::default().with_max_level(log::LevelFilter::max()),
+    );
 
-    let event_loop: EventLoop<()> = EventLoopBuilder::default()
+    let event_loop: EventLoop<LogicEvent> = EventLoopBuilder::default()
         .with_android_app(app)
+        .with_user_event()
         .build()
         .unwrap();
 

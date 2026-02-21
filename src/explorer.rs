@@ -1,5 +1,6 @@
 use std::env;
 use std::io::ErrorKind;
+use std::sync::mpsc::Sender;
 use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
 use iron_oxide::primitives::Vec2;
@@ -20,6 +21,7 @@ use winit::window::CursorIcon;
 use crate::UiIcons;
 use crate::file_size::FileSize;
 use crate::properties_view::PropertiesView;
+use crate::thread_event::LogicEvent;
 use crate::tooltip_view::ToolTipView;
 
 pub const OPEN: u16 = 1;
@@ -36,6 +38,7 @@ pub struct ExplorerData {
     pub clipboard: Clipboard,
     pub path: PathBuf,
     pub ui: Rc<RefCell<Ui>>,
+    pub sender: Sender<LogicEvent>,
 }
 
 pub struct Explorer {
@@ -46,7 +49,7 @@ pub struct Explorer {
 }
 
 impl ExplorerData {
-    pub fn new(ui: Rc<RefCell<Ui>>) -> Self {
+    pub fn new(ui: Rc<RefCell<Ui>>, sender: Sender<LogicEvent>) -> Self {
         let path_bar;
         let path: PathBuf = env::var(Self::HOME)
             .ok()
@@ -184,6 +187,7 @@ impl ExplorerData {
             clipboard: Clipboard::None,
             path,
             ui,
+            sender,
         }
     }
 
@@ -442,9 +446,9 @@ impl ExplorerData {
 }
 
 impl Explorer {
-    pub fn new(ui: Rc<RefCell<Ui>>) -> Self {
+    pub fn new(ui: Rc<RefCell<Ui>>, sender: Sender<LogicEvent>) -> Self {
         Self {
-            data: ExplorerData::new(ui),
+            data: ExplorerData::new(ui, sender),
             properties_view: PropertiesView::default(),
             tooltip_view: ToolTipView::default(),
         }

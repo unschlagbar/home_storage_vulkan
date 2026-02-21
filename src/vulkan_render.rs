@@ -62,7 +62,7 @@ pub struct VulkanRender {
 impl VulkanRender {
     pub fn create(window: &Window, ui_state: Rc<RefCell<Ui>>) -> Self {
         let (base, surface_loader, surface) =
-            VkBase::create(0, vk::API_VERSION_1_2, c"Home Storage", window);
+            VkBase::create(0, DEBUG_PERF, vk::API_VERSION_1_2, c"Home Storage", window);
 
         let window_size = window.inner_size();
 
