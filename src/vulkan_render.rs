@@ -112,8 +112,11 @@ impl VulkanRender {
             height: window_size.height,
             depth: 1,
         });
-        this.swapchain
-            .recreate(&this.base, this.render_pass, this.depth_image.view);
+        this.swapchain.recreate(
+            &this.base,
+            this.render_pass,
+            &mut [vk::ImageView::null(), this.depth_image.view],
+        );
 
         this.render_finsih_semaphores = (0..this.swapchain.image_views.len())
             .map(|_| unsafe {
@@ -530,8 +533,11 @@ impl VulkanRender {
             depth: 1,
         });
 
-        self.swapchain
-            .recreate(&self.base, self.render_pass, self.depth_image.view);
+        self.swapchain.recreate(
+            &self.base,
+            self.render_pass,
+            &mut [vk::ImageView::null(), self.depth_image.view],
+        );
         self.update_uniform_buffer();
 
         self.ui.borrow_mut().resize(new_size.into());

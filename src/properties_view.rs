@@ -253,7 +253,14 @@ impl PropertiesView {
             .unwrap();
         ui.add_child(attri("Location".to_string(), location), parent)
             .unwrap();
-        self.file_size_id = ui.add_child(file_size, parent).unwrap().child(1).unwrap().child(0).unwrap().id();
+        self.file_size_id = ui
+            .add_child(file_size, parent)
+            .unwrap()
+            .child(1)
+            .unwrap()
+            .child(0)
+            .unwrap()
+            .id();
         ui.add_child(
             attri("Created".to_string(), create_time.to_string()),
             parent,
