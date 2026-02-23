@@ -6,8 +6,7 @@ use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 use iron_oxide::primitives::Vec2;
 use iron_oxide::ui::text_layout::{TextLayout, TextOverflow};
 use iron_oxide::ui::{
-    Absolute, Align, ElementBuilder, FlexDirection, Image, ScrollPanel, TextInput, Ticking,
-    UiElement, UiRef, UiUnit,
+    Absolute, Align, ElementBuilder, FlexDirection, Font, Image, ScrollPanel, TextInput, Ticking, UiElement, UiRef, UiUnit
 };
 use iron_oxide::{
     graphics::formats::RGBA,
@@ -50,6 +49,8 @@ pub struct Explorer {
 
 impl ExplorerData {
     pub fn new(ui: Rc<RefCell<Ui>>, sender: Sender<LogicEvent>) -> Self {
+        let font = Rc::new(Font::parse_from_bytes(include_bytes!("../font/ggsans.fef")));
+
         let path_bar;
         let path: PathBuf = env::var(Self::HOME)
             .ok()
@@ -139,6 +140,7 @@ impl ExplorerData {
                         text: path.to_str().unwrap().to_string(),
                         align: Align::Left,
                         layout: TextLayout {
+                            font: Some(font),
                             overflow: TextOverflow::Ellipsis,
                             ..Default::default()
                         },

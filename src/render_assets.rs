@@ -9,7 +9,7 @@ use iron_oxide::{
     primitives::Matrix4,
     ui::{
         Ui,
-        materials::{AtlasInstance, FontInstance, ShadowInstance, UiInstance},
+        materials::{AtlasInstance, ShadowInstance, UiInstance},
     },
 };
 
@@ -66,7 +66,7 @@ impl RenderAssets {
             include_bytes!("../spv/basic.frag.spv").as_ref(),
         );
 
-        let font_shaders = (
+        let bitmap_shaders = (
             include_bytes!("../spv/atlas_texture.vert.spv").as_ref(),
             include_bytes!("../spv/bitmap.frag.spv").as_ref(),
         );
@@ -102,17 +102,15 @@ impl RenderAssets {
             window_size,
             render_pass,
             &[ubo_layout],
-            true,
             base_shaders,
         ));
 
-        ressources.add_mat(Material::new::<FontInstance>(
+        ressources.add_mat(Material::new::<AtlasInstance>(
             base,
             window_size,
             render_pass,
             &[ubo_layout, img_layout],
-            true,
-            font_shaders,
+            bitmap_shaders,
         ));
 
         ressources.add_mat(Material::new::<ShadowInstance>(
@@ -120,7 +118,6 @@ impl RenderAssets {
             window_size,
             render_pass,
             &[ubo_layout],
-            true,
             shadow_shaders,
         ));
 
@@ -129,7 +126,6 @@ impl RenderAssets {
             window_size,
             render_pass,
             &[ubo_layout, img_layout],
-            true,
             atlas_shaders,
         ));
 
@@ -151,7 +147,7 @@ impl RenderAssets {
     }
 
     fn create_font_atlas(renderer: &mut VulkanRender) -> VulkanImage {
-        let decoder = png::Decoder::new(Cursor::new(include_bytes!("../font/default8.png")));
+        let decoder = png::Decoder::new(Cursor::new(include_bytes!("../font/mojangles.png")));
 
         let mut reader = decoder.read_info().unwrap();
         let mut buf = vec![0; reader.output_buffer_size().unwrap()];

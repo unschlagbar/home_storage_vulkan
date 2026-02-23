@@ -2,7 +2,8 @@ use crate::logic_thread::Logic;
 use crate::render_assets::RenderAssets;
 use crate::thread_event::{LogicEvent, RenderEvent};
 use crate::{explorer::Explorer, vulkan_render::VulkanRender};
-use iron_oxide::ui::Ui;
+use iron_oxide::graphics::AssetManager;
+use iron_oxide::ui::{Font, Ui};
 use winit::event_loop::EventLoopProxy;
 
 use std::sync::mpsc::{self, Sender};
@@ -39,6 +40,8 @@ pub struct App {
     pub window: Option<Window>,
     pub renderer: Option<Rc<RefCell<VulkanRender>>>,
     pub render_assets: RenderAssets,
+
+    pub _asset_manager: AssetManager,
     pub ui: Rc<RefCell<Ui>>,
 
     pub explorer: Explorer,
@@ -58,7 +61,11 @@ impl App {
             Logic::new(rx, proxy).run();
         });
 
-        let ui = Rc::new(RefCell::new(Ui::create(true)));
+        let font = Rc::new(Font::parse_from_bytes(include_bytes!(
+            "../font/mojangles.fef"
+        )));
+
+        let ui = Rc::new(RefCell::new(Ui::create(true, font)));
         let mut explorer = Explorer::new(ui.clone(), tx.clone());
 
         explorer.data.display_path();
@@ -68,6 +75,7 @@ impl App {
                 window: None,
                 renderer,
                 render_assets: RenderAssets::default(),
+                _asset_manager: AssetManager::with_fonts(Rc::new([])),
                 ui,
                 explorer,
                 logic: tx,
