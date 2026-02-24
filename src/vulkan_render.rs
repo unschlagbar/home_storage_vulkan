@@ -60,7 +60,7 @@ pub struct VulkanRender {
 }
 
 impl VulkanRender {
-    pub fn create(window: &Window, ui_state: Rc<RefCell<Ui>>) -> Self {
+    pub fn create(window: &Window, ui: Rc<RefCell<Ui>>) -> Self {
         let (base, surface_loader, surface) =
             VkBase::create(0, vk::API_VERSION_1_2, c"Home Storage", window);
 
@@ -102,7 +102,7 @@ impl VulkanRender {
             depth_image,
             swapchain,
 
-            ui: ui_state,
+            ui,
             ressources,
             current_frame: 0,
         };

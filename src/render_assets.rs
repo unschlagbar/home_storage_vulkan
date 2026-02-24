@@ -12,12 +12,14 @@ use iron_oxide::{
         materials::{AtlasInstance, ShadowInstance, UiInstance},
     },
 };
+use png::Decoder;
 
 use crate::vulkan_render::{MemType, VulkanRender};
 
 #[derive(Default, Debug)]
 pub struct RenderAssets {
     pub font_atlas: VulkanImage,
+    pub msdf_atlas: VulkanImage,
 }
 
 impl RenderAssets {
@@ -46,15 +48,23 @@ impl RenderAssets {
             &mut renderer.ressources.mem_manager,
         );
 
-        self.font_atlas = Self::create_font_atlas(renderer);
+        self.font_atlas = Self::create_font_atlas(
+            renderer,
+            Decoder::new(Cursor::new(include_bytes!("../font/mojangles.png"))),
+        );
+        self.msdf_atlas = Self::create_font_atlas(
+            renderer,
+            Decoder::new(Cursor::new(include_bytes!("../font/ggsansMedium.png"))),
+        );
+
+        let base = &renderer.base;
+        self.font_atlas.create_view(base);
+        self.msdf_atlas.create_view(base);
 
         let ressources = &mut renderer.ressources;
-        let base = &renderer.base;
         let window_size = renderer.window_size;
         let render_pass = renderer.render_pass;
         let device = &renderer.base.device;
-
-        self.font_atlas.create_view(base);
 
         let shadow_shaders = (
             include_bytes!("../spv/shadow.vert.spv").as_ref(),
@@ -74,6 +84,11 @@ impl RenderAssets {
         let atlas_shaders = (
             include_bytes!("../spv/atlas_texture.vert.spv").as_ref(),
             include_bytes!("../spv/atlas_texture.frag.spv").as_ref(),
+        );
+
+        let msdf_shaders = (
+            include_bytes!("../spv/atlas_texture.vert.spv").as_ref(),
+            include_bytes!("../spv/msdf.frag.spv").as_ref(),
         );
 
         for (i, (buffer, buffer_mapped)) in renderer
@@ -129,12 +144,21 @@ impl RenderAssets {
             atlas_shaders,
         ));
 
+        ressources.add_mat(Material::new::<AtlasInstance>(
+            base,
+            window_size,
+            render_pass,
+            &[ubo_layout, img_layout],
+            msdf_shaders,
+        ));
+
         ressources.create_desc_sets(
             device,
-            &[ubo_layout, img_layout, img_layout],
-            &[1, 3],
+            &[ubo_layout, img_layout, img_layout, img_layout],
+            &[1, 4, 3],
             renderer.uniform_buffers[0],
             self.font_atlas.view,
+            self.msdf_atlas.view,
             ressources.texture_atlas.atlas.as_ref().unwrap().view,
         );
 
@@ -146,9 +170,10 @@ impl RenderAssets {
         renderer.update_uniform_buffer();
     }
 
-    fn create_font_atlas(renderer: &mut VulkanRender) -> VulkanImage {
-        let decoder = png::Decoder::new(Cursor::new(include_bytes!("../font/mojangles.png")));
-
+    fn create_font_atlas(
+        renderer: &mut VulkanRender,
+        decoder: Decoder<Cursor<&[u8]>>,
+    ) -> VulkanImage {
         let mut reader = decoder.read_info().unwrap();
         let mut buf = vec![0; reader.output_buffer_size().unwrap()];
         let info = reader.next_frame(&mut buf).unwrap();
@@ -160,9 +185,16 @@ impl RenderAssets {
             depth: 1,
         };
 
+        let format = match info.color_type {
+            png::ColorType::Rgba => Format::R8G8B8A8_UNORM,
+            png::ColorType::Rgb => Format::R8G8B8_UNORM,
+            png::ColorType::Grayscale => Format::R8_UNORM,
+            _ => panic!("Unsupported color type"),
+        };
+
         let create_info = ImageCreateInfo {
             image_type: vk::ImageType::TYPE_2D,
-            format: Format::R8_UNORM,
+            format,
             extent,
             mip_levels: 1,
             array_layers: 1,
@@ -187,5 +219,6 @@ impl RenderAssets {
 
     pub fn destroy(&self, device: &ash::Device) {
         unsafe { device.destroy_image_view(self.font_atlas.view, None) };
+        unsafe { device.destroy_image_view(self.msdf_atlas.view, None) };
     }
 }
