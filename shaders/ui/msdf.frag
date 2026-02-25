@@ -16,6 +16,10 @@ const float smoothness = 0.18;
 
 void main() {
     vec3 tx = textureLod(texSampler, uv, 0).rgb;
-    float signd = median(tx.r, tx.g, tx.b);
-    outColor = mix(threshold - smoothness, threshold + smoothness, signd) * color;
+    float sd = median(tx.r, tx.g, tx.b);
+    //outColor = mix(threshold - smoothness, threshold + smoothness, sd) * color;
+     float pxRange = fwidth(sd);
+    float alpha = clamp(sd / pxRange + 0.5, 0.0, 1.0);
+
+    outColor = vec4(color.rgb, color.a * alpha);
 }

@@ -50,10 +50,9 @@ pub struct Explorer {
 
 impl ExplorerData {
     pub fn new(ui: Rc<RefCell<Ui>>, sender: Sender<LogicEvent>) -> Self {
-        let font = Rc::new(Font::parse_from_bytes(
-            include_bytes!("../font/ggsans.fef"),
-            false,
-        ));
+        let font = Rc::new(Font::parse_msdf_from_bytes(include_bytes!(
+            "../font/ggsans-Medium-msdf.json"
+        )));
 
         let path_bar;
         let path: PathBuf = env::var(Self::HOME)

@@ -54,7 +54,7 @@ impl RenderAssets {
         );
         self.msdf_atlas = Self::create_font_atlas(
             renderer,
-            Decoder::new(Cursor::new(include_bytes!("../font/ggsansMedium.png"))),
+            Decoder::new(Cursor::new(include_bytes!("../font/ggsans-Medium.png"))),
         );
 
         let base = &renderer.base;

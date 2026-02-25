@@ -295,10 +295,8 @@ impl PropertiesView {
                     } else if ft.is_dir() {
                         match fs::read_dir(&p) {
                             Ok(rd) => {
-                                for entry in rd {
-                                    if let Ok(entry) = entry {
-                                        stack.push(entry.path());
-                                    }
+                                for entry in rd.flatten() {
+                                    stack.push(entry.path());
                                 }
                             }
                             Err(_) => continue,
@@ -315,9 +313,9 @@ impl PropertiesView {
     pub fn update_folder_size(&mut self, ui: &mut Ui, size: u64) {
         let mut elem = ui.get_element(self.file_size_id).unwrap();
         let text_elem = elem.downcast_mut::<Text>(ui).unwrap();
-        let mut file_size = FileSize(size as u64).to_string();
+        let mut file_size = FileSize(size).to_string();
         if size >= 1024 {
-            file_size += &format!("\n{}B", size);
+            file_size += &format!("\n{size}B");
         }
         text_elem.text = file_size;
         ui.layout_changed();

@@ -61,10 +61,9 @@ impl App {
             Logic::new(rx, proxy).run();
         });
 
-        let font = Rc::new(Font::parse_from_bytes(
-            include_bytes!("../font/mojangles.fef"),
-            true,
-        ));
+        let font = Rc::new(Font::parse_bitmap_from_bytes(include_bytes!(
+            "../font/mojangles.fef"
+        )));
 
         let ui = Rc::new(RefCell::new(Ui::create(true, font)));
         let mut explorer = Explorer::new(ui.clone(), tx.clone());
