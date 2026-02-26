@@ -9,10 +9,10 @@ mod explorer;
 #[path = "file_handling/linux.rs"]
 mod file_handling;
 mod file_size;
-mod logic_event;
 mod network;
 mod properties_view;
 mod render_assets;
+mod thread_event;
 mod tooltip_view;
 mod utils;
 mod vulkan_render;
