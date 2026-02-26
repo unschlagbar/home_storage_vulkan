@@ -87,7 +87,7 @@ impl RenderAssets {
         );
 
         let msdf_shaders = (
-            include_bytes!("../spv/atlas_texture.vert.spv").as_ref(),
+            include_bytes!("../spv/msdf.vert.spv").as_ref(),
             include_bytes!("../spv/msdf.frag.spv").as_ref(),
         );
 

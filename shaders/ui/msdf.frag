@@ -2,24 +2,24 @@
 
 layout(binding = 0, set = 1) uniform sampler2D texSampler;
 
-layout(location = 0) in vec2 uv;
-layout(location = 1) in flat vec4 color;
+layout(location = 0) in vec2 fragUv;
+layout(location = 1) in flat vec4 fragColor;
+layout(location = 2) in flat float fragScreenPxRange;
 
-layout(location = 0) out vec4 outColor;  
+layout(location = 0) out vec4 outColor;
 
 float median(float r, float g, float b) {
     return max(min(r, g), min(max(r, g), b));
 }
 
-const float threshold = 0.18;
-const float smoothness = 0.18;
+const float WEIGHT = 0.5;
 
 void main() {
-    vec3 tx = textureLod(texSampler, uv, 0).rgb;
-    float sd = median(tx.r, tx.g, tx.b);
-    //outColor = mix(threshold - smoothness, threshold + smoothness, sd) * color;
-     float pxRange = fwidth(sd);
-    float alpha = clamp(sd / pxRange + 0.5, 0.0, 1.0);
+    vec3 msd = textureLod(texSampler, fragUv, 0).rgb;
+    float sd = median(msd.r, msd.g, msd.b);
 
-    outColor = vec4(color.rgb, color.a * alpha);
+    float screenPxDistance = fragScreenPxRange * (sd - WEIGHT);
+    float alpha = clamp(screenPxDistance + WEIGHT, 0.0, 1.0);
+
+    outColor = vec4(fragColor.rgb, fragColor.a * alpha);
 }

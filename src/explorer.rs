@@ -145,8 +145,10 @@ impl ExplorerData {
                         layout: TextLayout {
                             font: Some(font),
                             overflow: TextOverflow::Ellipsis,
+                            font_size: 21.0,
                             ..Default::default()
                         },
+                        color: RGBA::WHITE,
                         ..Default::default()
                     }
                     .wrap("lio"),
@@ -204,7 +206,7 @@ impl ExplorerData {
         let path_bar_widget: &mut TextInput = path_bar.downcast_mut(&mut ui).unwrap();
 
         path_bar_widget.set_new(path_string);
-        path_bar_widget.color = RGBA::grey(200);
+        path_bar_widget.color = RGBA::WHITE;
 
         match fs::read_dir(&self.path) {
             Ok(entries) => {
