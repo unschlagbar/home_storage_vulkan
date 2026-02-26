@@ -123,7 +123,7 @@ impl ExplorerData {
                     Container {
                         color: RGBA::grey(35),
                         width: Fill(1.0),
-                        height: UiUnit::Fill(1.0),
+                        height: Fill(1.0),
                         margin: UiRect::left(5.0),
                         padding: UiRect::horizontal(Px(15.0)),
                         corner: [RelativeHeight(0.5); 4],
@@ -145,7 +145,7 @@ impl ExplorerData {
                         layout: TextLayout {
                             font: Some(font),
                             overflow: TextOverflow::Ellipsis,
-                            font_size: 21.0,
+                            font_size: 16.0,
                             ..Default::default()
                         },
                         color: RGBA::WHITE,
@@ -162,7 +162,7 @@ impl ExplorerData {
                     Container {
                         color: RGBA::grey(25),
                         width: UiUnit::FILL,
-                        height: UiUnit::Fill(1.0),
+                        height: Fill(1.0),
                         border: [0, 1, 0, 0],
                         border_color: RGBA::grey(70),
                         padding: UiRect::px(2.0),
