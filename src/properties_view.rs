@@ -6,7 +6,7 @@ use iron_oxide::graphics::formats::RGBA;
 use iron_oxide::primitives::Date;
 use iron_oxide::ui::{
     Absolute, Button, ButtonContext, ButtonState, Container, ElementBuilder, FlexAlign,
-    FlexDirection, Image, QueuedEvent, Shadow, Text, TextInput, Ui, UiElement, UiRect, UiRef,
+    FlexDirection, Image, QueuedEvent, Shadow, Text, TextInput, Ui, UiElement, UiRect, UiRef, UiUnit,
 };
 use iron_oxide::ui::{Align, UiUnit::*};
 
@@ -344,8 +344,8 @@ fn attri(name: String, value: String) -> UiElement {
     Container {
         color: RGBA::ZERO,
         width: Relative(1.0),
-        height: Fit,
-        padding: UiRect::from(&[16.0, 8.0, 16.0, 8.0]),
+        height: UiUnit::Fit,
+        padding: UiRect::from(&[16.0, 4.0, 16.0, 4.0]),
         flex_direction: FlexDirection::Horizontal,
         ..Default::default()
     }

@@ -54,11 +54,12 @@ impl ExplorerData {
             "../font/ggsans-Medium-msdf.json"
         )));
 
-        let path_bar;
-        let path: PathBuf = env::var(Self::HOME)
+        let path: String = env::var(Self::HOME)
             .ok()
-            .unwrap_or(Self::ROOT_PATH.to_string())
-            .into();
+            .unwrap_or(Self::ROOT_PATH.to_string());
+
+        let path = PathBuf::from(path.replace("\\", "/"));
+        let path_bar;
 
         let content_window = {
             let mut ui = ui.borrow_mut();
@@ -145,7 +146,7 @@ impl ExplorerData {
                         layout: TextLayout {
                             font: Some(font),
                             overflow: TextOverflow::Ellipsis,
-                            font_size: 16.0,
+                            font_size: 18.0,
                             ..Default::default()
                         },
                         color: RGBA::WHITE,
@@ -364,7 +365,7 @@ impl ExplorerData {
                 border: [1; 4],
                 width: Fit,
                 height: Fit,
-                padding: UiRect::px(10.0),
+                padding: UiRect::px(4.0),
                 corner: [Px(5.0); 4],
                 ..Default::default()
             },

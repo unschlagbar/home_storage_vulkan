@@ -61,8 +61,8 @@ impl App {
             Logic::new(rx, proxy).run();
         });
 
-        let font = Rc::new(Font::parse_bitmap_from_bytes(include_bytes!(
-            "../font/mojangles.fef"
+        let font = Rc::new(Font::parse_msdf_from_bytes(include_bytes!(
+            "../font/ggsans-Medium-msdf.json"
         )));
 
         let ui = Rc::new(RefCell::new(Ui::create(true, font)));
