@@ -8,6 +8,13 @@ build = "build/build.rs"
 name = "main"
 crate-type = ["cdylib"]
 
+[profile.release]
+codegen-units = 1
+lto = "fat"
+debug-assertions = false
+overflow-checks = false
+panic = "abort"
+
 [dependencies]
 iron_oxide = { path = "../iron_oxide", features = ["vulkan"]}
 ash = {version = "0.38.0", default-features = false, features = ["debug", "std"]}

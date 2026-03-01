@@ -15,7 +15,7 @@ float median(float r, float g, float b) {
 void main() {
     vec3 msd = textureLod(texSampler, fragUv, 0).rgb;
     float sd = median(msd.r, msd.g, msd.b);
-    float alpha = fragScreenPxRange * sd * 1.5;
+    float alpha = fragScreenPxRange * sd * 1.4;
 
     outColor = vec4(fragColor.rgb, fragColor.a * alpha);
 }

@@ -246,8 +246,7 @@ impl PropertiesView {
         }
         .to_string();
 
-        let location = path.display().to_string();
-
+        let location = path.to_str().unwrap().to_string();
         let file_size = attri("Size".to_string(), file_size);
 
         ui.add_child(attri("Type".to_string(), typ), parent)

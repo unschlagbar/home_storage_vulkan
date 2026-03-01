@@ -54,11 +54,10 @@ impl ExplorerData {
             "../font/ggsans-medium.json"
         )));
 
-        let path: String = env::var(Self::HOME)
+        let path: PathBuf = env::var(Self::HOME)
             .ok()
-            .unwrap_or(Self::ROOT_PATH.to_string());
+            .unwrap_or(Self::ROOT_PATH.to_string()).into();
 
-        let path = PathBuf::from(path.replace("\\", "/"));
         let path_bar;
 
         let content_window = {
@@ -146,7 +145,7 @@ impl ExplorerData {
                         layout: TextLayout {
                             font: Some(font),
                             overflow: TextOverflow::Ellipsis,
-                            font_size: 16.0,
+                            font_size: 24.0,
                             ..Default::default()
                         },
                         color: RGBA::WHITE,
