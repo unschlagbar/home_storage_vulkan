@@ -51,7 +51,7 @@ pub struct Explorer {
 impl ExplorerData {
     pub fn new(ui: Rc<RefCell<Ui>>, sender: Sender<LogicEvent>) -> Self {
         let font = Rc::new(Font::parse_msdf_from_bytes(include_bytes!(
-            "../font/ggsans-Medium-msdf.json"
+            "../font/ggsans-medium.json"
         )));
 
         let path: String = env::var(Self::HOME)
@@ -146,7 +146,7 @@ impl ExplorerData {
                         layout: TextLayout {
                             font: Some(font),
                             overflow: TextOverflow::Ellipsis,
-                            font_size: 18.0,
+                            font_size: 16.0,
                             ..Default::default()
                         },
                         color: RGBA::WHITE,
@@ -289,6 +289,7 @@ impl ExplorerData {
                                     Text {
                                         text: name,
                                         align: Align::Left,
+                                        color: RGBA::WHITE,
                                         layout: TextLayout {
                                             overflow: TextOverflow::Ellipsis,
                                             ..Default::default()

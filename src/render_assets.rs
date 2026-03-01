@@ -9,7 +9,7 @@ use iron_oxide::{
     primitives::Matrix4,
     ui::{
         Ui,
-        materials::{AtlasInstance, ShadowInstance, UiInstance},
+        materials::{AtlasInstance, MSDFInstance, ShadowInstance, UiInstance},
     },
 };
 use png::Decoder;
@@ -50,11 +50,11 @@ impl RenderAssets {
 
         self.font_atlas = Self::create_font_atlas(
             renderer,
-            Decoder::new(Cursor::new(include_bytes!("../font/ggsans-Medium.png"))),
+            Decoder::new(Cursor::new(include_bytes!("../font/ggsans-medium.png"))),
         );
         self.msdf_atlas = Self::create_font_atlas(
             renderer,
-            Decoder::new(Cursor::new(include_bytes!("../font/ggsans-Medium.png"))),
+            Decoder::new(Cursor::new(include_bytes!("../font/ggsans-medium.png"))),
         );
 
         let base = &renderer.base;
@@ -144,7 +144,7 @@ impl RenderAssets {
             atlas_shaders,
         ));
 
-        ressources.add_mat(Material::new::<AtlasInstance>(
+        ressources.add_mat(Material::new::<MSDFInstance>(
             base,
             window_size,
             render_pass,

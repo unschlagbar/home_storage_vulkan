@@ -6,7 +6,8 @@ use iron_oxide::graphics::formats::RGBA;
 use iron_oxide::primitives::Date;
 use iron_oxide::ui::{
     Absolute, Button, ButtonContext, ButtonState, Container, ElementBuilder, FlexAlign,
-    FlexDirection, Image, QueuedEvent, Shadow, Text, TextInput, Ui, UiElement, UiRect, UiRef, UiUnit,
+    FlexDirection, Image, QueuedEvent, Shadow, Text, TextInput, Ui, UiElement, UiRect, UiRef,
+    UiUnit,
 };
 use iron_oxide::ui::{Align, UiUnit::*};
 

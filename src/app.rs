@@ -62,7 +62,7 @@ impl App {
         });
 
         let font = Rc::new(Font::parse_msdf_from_bytes(include_bytes!(
-            "../font/ggsans-Medium-msdf.json"
+            "../font/ggsans-medium.json"
         )));
 
         let ui = Rc::new(RefCell::new(Ui::create(true, font)));
