@@ -145,7 +145,7 @@ impl ExplorerData {
                         layout: TextLayout {
                             font: Some(font),
                             overflow: TextOverflow::Ellipsis,
-                            font_size: 24.0,
+                            font_size: 16.0,
                             ..Default::default()
                         },
                         color: RGBA::WHITE,
