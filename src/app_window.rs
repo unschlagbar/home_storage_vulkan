@@ -89,12 +89,11 @@ impl ApplicationHandler<RenderEvent> for App {
                 }
             }
             WindowEvent::RedrawRequested => {
+                self.frame_start = Instant::now();
+                renderer.borrow_mut().draw_frame();
+
                 if DEBUG_PERF {
-                    let start = Instant::now();
-                    renderer.borrow_mut().draw_frame();
-                    println!("Draw: {:?}", start.elapsed());
-                } else {
-                    renderer.borrow_mut().draw_frame();
+                    println!("Draw: {:?}", self.frame_start.elapsed());
                 }
             }
             WindowEvent::Resized(new_size) => {
@@ -142,7 +141,7 @@ impl ApplicationHandler<RenderEvent> for App {
 
         if let Some(renderer) = &self.renderer {
             let mut renderer = renderer.borrow_mut();
-            renderer.destroy_ressources(&mut self.render_assets);
+            renderer.destroy_resources(&mut self.render_assets);
         }
 
         self.renderer = None;

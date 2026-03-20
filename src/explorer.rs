@@ -6,7 +6,7 @@ use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 use iron_oxide::primitives::Vec2;
 use iron_oxide::ui::text_layout::{TextLayout, TextOverflow};
 use iron_oxide::ui::{
-    Absolute, Align, ElementBuilder, FlexDirection, Font, Image, ScrollPanel, TextInput, Ticking,
+    Absolute, Align, ElementBuilder, FlexAxis, Font, Image, ScrollPanel, TextInput, Ticking,
     UiElement, UiRef, UiUnit,
 };
 use iron_oxide::{
@@ -30,10 +30,10 @@ pub const ENTRY_ACTION: u16 = 3;
 pub const PROPERTIES_ACTION: u16 = 4;
 
 pub struct ExplorerData {
-    pub content_window: u32,
-    pub path_bar: u32,
+    pub content_window: usize,
+    pub path_bar: usize,
 
-    pub selected_file: u32,
+    pub selected_file: usize,
 
     pub clipboard: Clipboard,
     pub path: PathBuf,
@@ -56,7 +56,8 @@ impl ExplorerData {
 
         let path: PathBuf = env::var(Self::HOME)
             .ok()
-            .unwrap_or(Self::ROOT_PATH.to_string()).into();
+            .unwrap_or(Self::ROOT_PATH.to_string())
+            .into();
 
         let path_bar;
 
@@ -81,7 +82,7 @@ impl ExplorerData {
                         color: RGBA::grey(20),
                         width: UiUnit::FILL,
                         height: Px(40.0),
-                        flex_direction: FlexDirection::Horizontal,
+                        flex_axis: FlexAxis::Horizontal,
                         padding: UiRect::px(5.0),
                         ..Default::default()
                     }
@@ -203,7 +204,7 @@ impl ExplorerData {
 
         let path_string = self.path.to_str().unwrap().to_string();
         let mut path_bar = ui.get_element(self.path_bar).unwrap();
-        let path_bar_widget: &mut TextInput = path_bar.downcast_mut(&mut ui).unwrap();
+        let path_bar_widget: &mut TextInput = path_bar.downcast_mut(&mut ui);
 
         path_bar_widget.set_new(path_string);
         path_bar_widget.color = RGBA::WHITE;
@@ -245,7 +246,6 @@ impl ExplorerData {
                         border_color: RGBA::ZERO,
                         height: Fit,
                         width: UiUnit::Fill(1.0),
-                        flex_direction: FlexDirection::Horizontal,
                         padding: UiRect::horizontal(Px(2.0)),
                         corner: [Px(5.0); 4],
                         border: [1; 4],
@@ -345,7 +345,7 @@ impl ExplorerData {
             }
             Err(error) => {
                 if error.kind() == ErrorKind::NotFound {
-                    path_bar.downcast_mut::<TextInput>(&mut ui).unwrap().color = RGBA::RED;
+                    path_bar.downcast_mut::<TextInput>(&mut ui).color = RGBA::RED;
                 } else if let Some(path) = self.path.parent() {
                     self.path = path.into();
                 }
@@ -407,7 +407,7 @@ impl ExplorerData {
         {
             let mut ui = self.ui.borrow_mut();
             let path_bar = ui.get_element_mut(event.element_id).unwrap();
-            let path_bar: &mut TextInput = path_bar.downcast_mut().unwrap();
+            let path_bar: &mut TextInput = path_bar.downcast_mut();
             if path_bar.text == self.path.to_str().unwrap() {
                 return;
             } else {
@@ -498,7 +498,7 @@ impl Explorer {
             last_sel = self.data.selected_file;
             self.data.selected_file = hovered.id();
 
-            let button: &mut Button = hovered.downcast_mut().unwrap();
+            let button: &mut Button = hovered.downcast_mut();
             button.border_color = RGBA::grey(100);
 
             let pos = ui.cursor_pos.into_f32();
@@ -511,7 +511,7 @@ impl Explorer {
             && last_sel != self.data.selected_file
             && let Some(mut element) = ui.get_element(last_sel)
         {
-            let button: &mut Button = element.downcast_mut(ui).unwrap();
+            let button: &mut Button = element.downcast_mut(ui);
             if button.border_color != RGBA::GREEN {
                 button.border_color = RGBA::ZERO;
             }
@@ -524,7 +524,7 @@ impl Explorer {
 }
 
 fn on_click(mut context: ButtonContext) {
-    let button: &mut Button = context.element.get_mut(context.ui).downcast_mut().unwrap();
+    let button: &mut Button = context.element.get_mut(context.ui).downcast_mut();
 
     match button.state {
         ButtonState::Normal => {

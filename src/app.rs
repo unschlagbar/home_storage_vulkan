@@ -34,7 +34,7 @@ pub const LIMIT_FPS: bool = true;
 pub const ONLY_DRAW_ON_UPDATE: bool = true;
 const DEFAULT_FPS: u64 = 60;
 
-pub const DEBUG_PERF: bool = !true;
+pub const DEBUG_PERF: bool = true;
 
 pub struct App {
     pub window: Option<Window>,
@@ -48,6 +48,7 @@ pub struct App {
     #[allow(unused)]
     pub logic: Sender<LogicEvent>,
 
+    pub frame_start: Instant,
     pub target_frame_time: Duration,
     pub time: Instant,
 }
@@ -79,6 +80,8 @@ impl App {
                 ui,
                 explorer,
                 logic: tx,
+
+                frame_start: Instant::now(),
                 target_frame_time: Duration::from_millis(1000 / DEFAULT_FPS),
                 time: Instant::now(),
             },

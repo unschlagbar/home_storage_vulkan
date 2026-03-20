@@ -11,7 +11,7 @@ use crate::explorer::{Clipboard, ENTRY_ACTION, Explorer};
 
 #[derive(Clone, Copy, Default)]
 pub struct ToolTipView {
-    pub id: u32,
+    pub id: usize,
 }
 
 impl ToolTipView {
@@ -24,7 +24,7 @@ impl ToolTipView {
     pub fn create(&mut self, ui: &mut Ui, pos: Vec2<f32>) {
         if self.is_active() {
             let tools = ui.get_element_mut(self.id).unwrap();
-            let abs = tools.downcast_mut::<Absolute>().unwrap();
+            let abs = tools.downcast_mut::<Absolute>();
             abs.offset = pos;
         } else {
             self.id = ui
@@ -117,7 +117,7 @@ impl ToolTipView {
                 ui.color_changed();
 
                 let mut text_element = selected.child(1).unwrap().child(0).unwrap();
-                let text_widget: &mut Text = text_element.downcast_mut(&mut ui).unwrap();
+                let text_widget: &mut Text = text_element.downcast_mut(&mut ui);
                 text_widget.color = RGBA::grey(100);
 
                 let path = exp.data.path.clone().join(&text_widget.text);
@@ -131,7 +131,7 @@ impl ToolTipView {
                 let mut ui = data.ui.borrow_mut();
 
                 let mut selected = ui.get_element(data.selected_file).unwrap();
-                let button: &mut Button = selected.downcast_mut(&mut ui).unwrap();
+                let button: &mut Button = selected.downcast_mut(&mut ui);
                 button.border_color = RGBA::GREEN;
                 button.callback = None;
 
@@ -146,10 +146,7 @@ impl ToolTipView {
                     .add_child(text_input.wrap("inline rename"), selected.child(1).unwrap())
                     .unwrap();
                 TextInput::focus(&mut ui, text_input);
-                text_input
-                    .downcast_mut::<TextInput>(&mut ui)
-                    .unwrap()
-                    .set_cursor();
+                text_input.downcast_mut::<TextInput>(&mut ui).set_cursor();
             }
             "properties" => {
                 let mut ui = data.ui.borrow_mut();
@@ -161,7 +158,7 @@ impl ToolTipView {
     }
 
     pub fn callback(mut context: ButtonContext) {
-        let button: &mut Button = context.element.get_mut(context.ui).downcast_mut().unwrap();
+        let button: &mut Button = context.element.get_mut(context.ui).downcast_mut();
 
         match button.state {
             ButtonState::Normal => {
@@ -185,7 +182,7 @@ impl ToolTipView {
         let element = context.element;
         let parent = element.parent.unwrap().parent.unwrap().get_mut(context.ui);
 
-        let container: &mut Button = parent.downcast_mut().unwrap();
+        let container: &mut Button = parent.downcast_mut();
         container.border_color = RGBA::ZERO;
         container.callback = Some(Self::callback);
 

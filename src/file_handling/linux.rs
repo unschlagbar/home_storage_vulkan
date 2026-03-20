@@ -3,7 +3,7 @@ use std::process::Command;
 use crate::explorer::ExplorerData;
 
 impl ExplorerData {
-    pub fn open_file(&mut self, clicked_id: u32) {
+    pub fn open_file(&mut self, clicked_id: usize) {
         let path = {
             let mut ui = self.ui.borrow_mut();
             let element = ui.get_element(clicked_id).unwrap();

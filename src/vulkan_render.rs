@@ -5,7 +5,7 @@ use ash::vk::{
     SemaphoreCreateInfo,
 };
 use iron_oxide::{
-    graphics::{Ressources, Swapchain, VkBase, VulkanImage},
+    graphics::{Resources, Swapchain, VkBase, VulkanImage},
     primitives::Matrix4,
     ui::Ui,
 };
@@ -54,7 +54,7 @@ pub struct VulkanRender {
     pub swapchain: Swapchain,
 
     pub ui: Rc<RefCell<Ui>>,
-    pub ressources: Ressources,
+    pub resources: Resources,
 
     pub current_frame: usize,
 }
@@ -75,7 +75,7 @@ impl VulkanRender {
         let swapchain = Swapchain::new(&base, present_mode, surface_loader, surface, window_size);
         let render_pass = Self::create_render_pass(&base, swapchain.format);
 
-        let ressources = Ressources::new(&base);
+        let resources = Resources::new(&base);
 
         let cmd_pool = Self::create_cmd_pool(&base);
         let depth_image = VulkanImage::default();
@@ -103,7 +103,7 @@ impl VulkanRender {
             swapchain,
 
             ui,
-            ressources,
+            resources,
             current_frame: 0,
         };
 
@@ -303,17 +303,17 @@ impl VulkanRender {
                 .get_image_memory_requirements(self.depth_image.image)
         };
 
-        let mem = &self.ressources.mem_manager.memory_pool[MemType::Lazy as usize];
+        let mem = &self.resources.mem_manager.memory_pool[MemType::Lazy as usize];
         let allocation_size = requirements.size;
         if mem.memory.is_null() {
-            self.ressources.mem_manager.allocate_memory(
+            self.resources.mem_manager.allocate_memory(
                 &self.base,
-                self.ressources.mem_manager.lazy,
+                self.resources.mem_manager.lazy,
                 allocation_size,
                 MemType::Lazy as usize,
             );
         } else {
-            self.ressources.mem_manager.reallocate_memory(
+            self.resources.mem_manager.reallocate_memory(
                 &self.base,
                 allocation_size,
                 MemType::Lazy as usize,
@@ -321,7 +321,7 @@ impl VulkanRender {
         }
 
         let layout = vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        self.ressources.mem_manager.create_image(
+        self.resources.mem_manager.create_image(
             &self.base,
             MemType::Lazy as usize,
             self.cmd_pool,
@@ -476,10 +476,10 @@ impl VulkanRender {
 
         if DEBUG_PERF {
             let start = Instant::now();
-            ui.update(&self.base, &mut self.ressources, MFIF);
+            ui.update(&self.base, &mut self.resources, MFIF);
             println!("CPU to GPU time: {:?}", start.elapsed());
         } else {
-            ui.update(&self.base, &mut self.ressources, MFIF);
+            ui.update(&self.base, &mut self.resources, MFIF);
         }
 
         unsafe {
@@ -499,13 +499,13 @@ impl VulkanRender {
             device.cmd_bind_descriptor_sets(
                 command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
-                self.ressources.materials[0].pipeline.layout,
+                self.resources.materials[0].pipeline.layout,
                 0,
-                &[self.ressources.ubo_set],
+                &[self.resources.ubo_set],
                 &[],
             );
 
-            self.ressources.draw(device, command_buffer, scissor);
+            self.resources.draw(device, command_buffer, scissor);
 
             device.cmd_end_render_pass(command_buffer);
 
@@ -565,7 +565,7 @@ impl VulkanRender {
         unsafe {
             self.base.device_wait_idle();
 
-            self.ressources.destroy(&self.base);
+            self.resources.destroy(&self.base);
             render_assets.destroy(device);
             self.depth_image.destroy(device);
             self.swapchain.destroy(device);
@@ -585,11 +585,11 @@ impl VulkanRender {
         };
     }
 
-    pub fn destroy_ressources(&mut self, render_assets: &mut RenderAssets) {
+    pub fn destroy_resources(&mut self, render_assets: &mut RenderAssets) {
         let device = &self.base.device;
         self.base.device_wait_idle();
 
-        self.ressources.destroy(&self.base);
+        self.resources.destroy(&self.base);
         render_assets.destroy(device);
     }
 }

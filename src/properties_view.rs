@@ -5,9 +5,8 @@ use std::time::UNIX_EPOCH;
 use iron_oxide::graphics::formats::RGBA;
 use iron_oxide::primitives::Date;
 use iron_oxide::ui::{
-    Absolute, Button, ButtonContext, ButtonState, Container, ElementBuilder, FlexAlign,
-    FlexDirection, Image, QueuedEvent, Shadow, Text, TextInput, Ui, UiElement, UiRect, UiRef,
-    UiUnit,
+    Absolute, Button, ButtonContext, ButtonState, Container, ElementBuilder, FlexAlign, FlexAxis,
+    Image, QueuedEvent, Shadow, Text, TextInput, Ui, UiElement, UiRect, UiRef, UiUnit,
 };
 use iron_oxide::ui::{Align, UiUnit::*};
 
@@ -18,8 +17,8 @@ use crate::thread_event::LogicEvent;
 
 #[derive(Default)]
 pub struct PropertiesView {
-    pub id: u32,
-    pub file_size_id: u32,
+    pub id: usize,
+    pub file_size_id: usize,
 }
 
 impl PropertiesView {
@@ -80,7 +79,7 @@ impl PropertiesView {
                         border: [0, 0, 0, 1],
                         border_color: RGBA::GREEN,
                         padding: UiRect::px(5.0),
-                        flex_direction: FlexDirection::Horizontal,
+                        flex_axis: FlexAxis::Horizontal,
                         ..Default::default()
                     }
                     .wrap_childs(
@@ -131,7 +130,7 @@ impl PropertiesView {
                         width: Relative(1.0),
                         border: [0, 0, 0, 1],
                         border_color: RGBA::GREEN,
-                        flex_direction: FlexDirection::Horizontal,
+                        flex_axis: FlexAxis::Horizontal,
                         ..Default::default()
                     }
                     .wrap_childs_transparent(
@@ -160,7 +159,7 @@ impl PropertiesView {
                                 margin: UiRect::right(16.0),
                                 height: Fit,
                                 width: Fill(1.0),
-                                flex_align: FlexAlign::Center,
+                                align_items: FlexAlign::Center,
                                 border: [1; 4],
                                 corner: [Px(5.0); 4],
                                 padding: UiRect::px(5.0),
@@ -312,7 +311,7 @@ impl PropertiesView {
 
     pub fn update_folder_size(&mut self, ui: &mut Ui, size: u64) {
         let mut elem = ui.get_element(self.file_size_id).unwrap();
-        let text_elem = elem.downcast_mut::<Text>(ui).unwrap();
+        let text_elem = elem.downcast_mut::<Text>(ui);
         let mut file_size = FileSize(size).to_string();
         if size >= 1024 {
             file_size += &format!("\n{size}B");
@@ -323,7 +322,7 @@ impl PropertiesView {
 }
 
 fn on_click(mut context: ButtonContext) {
-    let button: &mut Button = context.element.get_mut(context.ui).downcast_mut().unwrap();
+    let button: &mut Button = context.element.get_mut(context.ui).downcast_mut();
 
     match button.state {
         ButtonState::Normal => {
@@ -346,7 +345,7 @@ fn attri(name: String, value: String) -> UiElement {
         width: Relative(1.0),
         height: UiUnit::Fit,
         padding: UiRect::from(&[16.0, 4.0, 16.0, 4.0]),
-        flex_direction: FlexDirection::Horizontal,
+        flex_axis: FlexAxis::Horizontal,
         ..Default::default()
     }
     .wrap_childs(
