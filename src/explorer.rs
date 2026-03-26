@@ -245,7 +245,7 @@ impl ExplorerData {
                         color: RGBA::ZERO,
                         border_color: RGBA::ZERO,
                         height: Fit,
-                        width: UiUnit::Fill(1.0),
+                        width: UiUnit::Relative(1.0),
                         padding: UiRect::horizontal(Px(2.0)),
                         corner: [Px(5.0); 4],
                         border: [1; 4],
