@@ -4,6 +4,7 @@ use std::time::UNIX_EPOCH;
 
 use iron_oxide::graphics::formats::RGBA;
 use iron_oxide::primitives::Date;
+use iron_oxide::rect;
 use iron_oxide::ui::{
     Absolute, Button, ButtonContext, ButtonState, Container, ElementBuilder, FlexAlign, FlexAxis,
     Image, QueuedEvent, Shadow, Text, TextInput, Ui, UiElement, UiRect, UiRef, UiUnit,
@@ -156,7 +157,7 @@ impl PropertiesView {
                             ),
                             Container {
                                 color: RGBA::grey(25),
-                                margin: UiRect::right(16.0),
+                                margin: UiRect::right(Px(16.0)),
                                 height: Fit,
                                 width: Fill(1.0),
                                 align_items: FlexAlign::Center,
@@ -172,7 +173,7 @@ impl PropertiesView {
                                         text: name.clone(),
                                         ..Default::default()
                                     }
-                                    .wrap(""),
+                                    .wrap(),
                                 ],
                             ),
                         ],
@@ -344,7 +345,7 @@ fn attri(name: String, value: String) -> UiElement {
         color: RGBA::ZERO,
         width: Relative(1.0),
         height: UiUnit::Fit,
-        padding: UiRect::from(&[16.0, 4.0, 16.0, 4.0]),
+        padding: rect!(4.0, 16.0, 4.0, 16.0),
         flex_axis: FlexAxis::Horizontal,
         ..Default::default()
     }
@@ -364,7 +365,7 @@ fn attri(name: String, value: String) -> UiElement {
                         text: name,
                         ..Default::default()
                     }
-                    .wrap(""),
+                    .wrap(),
                 ],
             ),
             Container {
@@ -380,7 +381,7 @@ fn attri(name: String, value: String) -> UiElement {
                         text: value,
                         ..Default::default()
                     }
-                    .wrap(""),
+                    .wrap(),
                 ],
             ),
         ],

@@ -143,7 +143,10 @@ impl ToolTipView {
                 text_input.on_blur = Some(Self::on_submit);
 
                 let mut text_input = ui
-                    .add_child(text_input.wrap("inline rename"), selected.child(1).unwrap())
+                    .add_child(
+                        text_input.wrap_name("inline rename"),
+                        selected.child(1).unwrap(),
+                    )
                     .unwrap();
                 TextInput::focus(&mut ui, text_input);
                 text_input.downcast_mut::<TextInput>(&mut ui).set_cursor();

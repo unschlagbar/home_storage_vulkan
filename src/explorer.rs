@@ -4,6 +4,7 @@ use std::sync::mpsc::Sender;
 use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
 use iron_oxide::primitives::Vec2;
+use iron_oxide::rect;
 use iron_oxide::ui::text_layout::{TextLayout, TextOverflow};
 use iron_oxide::ui::{
     Absolute, Align, ElementBuilder, FlexAxis, Font, Image, ScrollPanel, TextInput, Ticking,
@@ -72,7 +73,7 @@ impl ExplorerData {
                         height: UiUnit::FILL,
                         ..Default::default()
                     }
-                    .wrap("root"),
+                    .wrap_name("root"),
                 )
                 .id();
 
@@ -86,7 +87,7 @@ impl ExplorerData {
                         padding: UiRect::px(5.0),
                         ..Default::default()
                     }
-                    .wrap("nav_bar"),
+                    .wrap_name("nav_bar"),
                     root,
                 )
                 .unwrap()
@@ -125,8 +126,8 @@ impl ExplorerData {
                         color: RGBA::grey(35),
                         width: Fill(1.0),
                         height: Fill(1.0),
-                        margin: UiRect::left(5.0),
-                        padding: UiRect::horizontal(Px(15.0)),
+                        margin: UiRect::left(Px(5.0)),
+                        padding: rect!(0, 15),
                         corner: [RelativeHeight(0.5); 4],
                         border: [0; 4],
                         border_color: RGBA::grey(100),
@@ -152,7 +153,7 @@ impl ExplorerData {
                         color: RGBA::WHITE,
                         ..Default::default()
                     }
-                    .wrap("lio"),
+                    .wrap_name("lio"),
                     path_bar_parent,
                 )
                 .unwrap()
@@ -169,7 +170,7 @@ impl ExplorerData {
                         padding: UiRect::px(2.0),
                         ..Default::default()
                     }
-                    .wrap("content"),
+                    .wrap_name("content"),
                     root,
                 )
                 .unwrap()
@@ -180,7 +181,7 @@ impl ExplorerData {
                     padding: UiRect::px(2.0),
                     ..Default::default()
                 }
-                .wrap("scroll_pannel"),
+                .wrap_name("scroll_pannel"),
                 content,
             )
             .unwrap()
@@ -246,7 +247,7 @@ impl ExplorerData {
                         border_color: RGBA::ZERO,
                         height: Fit,
                         width: UiUnit::Relative(1.0),
-                        padding: UiRect::horizontal(Px(2.0)),
+                        padding: rect!(0, 2),
                         corner: [Px(5.0); 4],
                         border: [1; 4],
                         callback: Some(on_click),
@@ -260,7 +261,7 @@ impl ExplorerData {
                             Container {
                                 height: Px(30.0),
                                 width: Px(30.0),
-                                margin: UiRect::from(&[0.0, 0.0, 6.0, 0.0]),
+                                margin: rect!(0.0, 6.0, 0.0, 0.0),
                                 color: RGBA::TRANSPARENT,
                                 padding: UiRect::px(3.0),
                                 ..Default::default()
@@ -279,7 +280,7 @@ impl ExplorerData {
                                 height: Px(30.0),
                                 width: Fill(1.0),
                                 color: RGBA::TRANSPARENT,
-                                padding: UiRect::left(5.0),
+                                padding: UiRect::left(Px(5.0)),
                                 ..Default::default()
                             }
                             .wrap_childs_transparent(
@@ -324,7 +325,7 @@ impl ExplorerData {
                             color: RGBA::ZERO,
                             height: Px(50.0),
                             width: Relative(1.0),
-                            padding: UiRect::horizontal(Px(2.0)),
+                            padding: rect!(0, 2),
                             ..Default::default()
                         }
                         .wrap_childs(
@@ -336,7 +337,7 @@ impl ExplorerData {
                                     align: Align::Center,
                                     ..Default::default()
                                 }
-                                .wrap("empty_msg"),
+                                .wrap(),
                             ],
                         ),
                         self.content_window,
@@ -380,7 +381,7 @@ impl ExplorerData {
                     color: RGBA::RED,
                     ..Default::default()
                 }
-                .wrap(""),
+                .wrap(),
             ],
         )
     }
